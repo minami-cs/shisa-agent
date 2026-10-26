@@ -156,6 +156,13 @@ export type BusHandlers = {
   naverCalendarConnect?: (body: unknown) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; status: number; error: string; code?: string }>;
   icloudCalendarConnect?: (body: unknown) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; status: number; error: string; code?: string }>;
   calDavRemove?: (id: string) => { ok: true; [k: string]: unknown } | { ok: false; status: number; error: string };
+  // Google 캘린더(OAuth, 읽기 전용, calendar-google-connect.ts): GET /connectors/calendar/google(상태) · POST { clientId, clientSecret? }(로그인 주소를 돌려준다)
+  // · DELETE(토큰·그 캘린더 줄 지우기). 시크릿·토큰은 응답에 없다
+  googleCalendar?: {
+    status: () => unknown;
+    start: (body: unknown) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; status: number; error: string }>;
+    remove: () => { ok: true; [k: string]: unknown } | { ok: false; status: number; error: string };
+  };
   // 캘린더 탭: 보는 기간의 일정(캘린더마다 id·별칭·색). GET /calendar/events?from=&to=(&fresh=1) — calendar-view.ts. 없으면 503
   calendarEvents?: (range: { from: string; to: string; fresh: boolean }) => Promise<unknown>;
   // 메일 계정 하나 빼기(비밀번호·가져온 메일까지). DELETE /connectors/mail/:id. 마지막 계정이면 메일 연결이 꺼진다
@@ -586,6 +593,15 @@ export class Bus {
     if (req.method === "GET" && url.pathname === "/connectors/calendar") {
       return h.calendarList ? json(res, 200, h.calendarList()) : json(res, 503, { error: "calendar list unavailable" });
     }
+    if (req.method === "GET" && url.pathname === "/connectors/calendar/google") {
+      return h.googleCalendar ? json(res, 200, h.googleCalendar.status()) : json(res, 503, { error: "google calendar unavailable" });
+    }
+    if (req.method === "DELETE" && url.pathname === "/connectors/calendar/google") {
+      if (req.headers["x-cy-agent"] !== "1" || (req.headers.origin && !req.headers.origin.startsWith("file://"))) return json(res, 403, { error: "forbidden" });
+      if (!h.googleCalendar) return json(res, 503, { error: "google calendar unavailable" });
+      const r = h.googleCalendar.remove();
+      return r.ok ? json(res, 200, r) : json(res, r.status, { error: r.error });
+    }
     if (req.method === "GET" && url.pathname === "/calendar/events") {
       if (!h.calendarEvents) return json(res, 503, { error: "calendar events unavailable" });
       const r = parseRange(url.searchParams);
@@ -666,6 +682,11 @@ export class Bus {
         if (!h.icloudCalendarConnect) return json(res, 503, { error: "icloud calendar unavailable" });
         const r = await h.icloudCalendarConnect(await readJson(req));
         return r.ok ? json(res, 200, r) : json(res, r.status, { error: r.error, ...(r.code ? { code: r.code } : {}) });
+      }
+      if (url.pathname === "/connectors/calendar/google") {
+        if (!h.googleCalendar) return json(res, 503, { error: "google calendar unavailable" });
+        const r = await h.googleCalendar.start(await readJson(req));
+        return r.ok ? json(res, 200, r) : json(res, r.status, { error: r.error });
       }
       if (url.pathname === "/connectors/mail") {
         if (!h.mailConnect) return json(res, 503, { error: "mail connect unavailable" });

@@ -123,6 +123,7 @@ export function withCalendarColor(cfg, id, color, hash) {
 // 계정이 붙은 줄은 그 계정 preset(icloud 면 iCloud, 모르면 계정 id 앞글자 i- 로, 그 밖은 네이버).
 // iCloud 서버 주소라도 /published/ 아래는 「공개 캘린더」 ICS 주소라 ICS 로 둔다
 export function calendarKind(url, account, preset) {
+  if (account === 'g-primary') return 'gcal'; // Google 캘린더(OAuth, 데몬 calendar-google.ts)
   if (account) return preset === 'icloud' || (!preset && /^i-/.test(account)) ? 'icloud' : 'naver';
   let host = '', path = '';
   try { const u = new URL(url); host = u.hostname.toLowerCase(); path = u.pathname; } catch { return 'ics'; }
@@ -168,7 +169,7 @@ export function calendarRows(cfg, hash) {
   const users = calDavUsers(cfg);
   return calendarEntries(cfg).map((e, i) => {
     const kind = calendarKind(e.url, e.account, users.get(e.account)?.preset);
-    const label = kind === 'naver' || kind === 'icloud' ? users.get(e.account)?.user || CALENDAR_TITLE[kind] : maskCalendarUrl(e.url);
+    const label = kind === 'naver' || kind === 'icloud' ? users.get(e.account)?.user || CALENDAR_TITLE[kind] : e.account === 'g-primary' ? 'Google OAuth' : maskCalendarUrl(e.url);
     return { id: idOf(e, hash), kind, title: CALENDAR_TITLE[kind], label, name: e.name || t('settings.cal_n', { n: i + 1 }), named: !!e.name, enabled: e.enabled, ...(e.account ? { account: e.account } : {}) };
   });
 }

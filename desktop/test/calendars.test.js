@@ -350,3 +350,32 @@ test('캘린더 카드 안: 별칭·가린 주소·결과·켜기/끄기·별칭
   assert.equal(ed().all((n) => n.dataset.id === hash(G2)).length, 0);
   delete globalThis.document;
 });
+
+test('Google 캘린더(OAuth) 줄: 계정 g-primary 는 구글 캘린더 종류, 주소 대신 「Google OAuth」 · 설정 창 IPC 는 모양이 맞는 값만 넘긴다', async () => {
+  const API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+  assert.equal(calendarKind(API, 'g-primary'), 'gcal');
+  const cfg = { connectors: { calendar: { mode: 'api', calendars: [{ id: '0123456789abcdef', name: 'me@gmail.com', url: API, enabled: true, account: 'g-primary' }], google: { clientId: 'x.apps.googleusercontent.com', clientSecret: 'GOCSPX-s' } } } };
+  const [row] = calendarRows(cfg, hash);
+  assert.equal(row.kind, 'gcal');
+  assert.equal(row.label, 'Google OAuth');
+  assert.equal(row.account, 'g-primary');
+  // 별칭을 고쳐 써도 google 클라이언트는 남는다
+  assert.deepEqual(withCalendarRenamed(cfg, '0123456789abcdef', '회사', hash).connectors.calendar.google, cfg.connectors.calendar.google);
+
+  const handlers = {}, listeners = {}, calls = [];
+  const fakeWin = { webContents: { setWindowOpenHandler() {}, on() {} }, loadFile() {}, once() {}, on() {}, show() {}, focus() {}, isDestroyed: () => false };
+  class BW { constructor() { return fakeWin; } }
+  setupSettings({
+    BrowserWindow: BW, ipcMain: { handle: (c, f) => { handlers[c] = f; }, on: (c, f) => { listeners[c] = f; } }, shell: {}, request: async () => ({ ok: true }), fromOurs: () => true, preload: 'p', html: 'h',
+    googleCalendar: { status: () => { calls.push(['status']); return { ok: true }; }, start: (b) => { calls.push(['start', b]); return { ok: true }; }, remove: () => { calls.push(['remove']); return { ok: true }; } },
+  });
+  listeners['open-settings']({ sender: 'panel' });
+  const mine = { sender: fakeWin.webContents };
+  assert.equal((await handlers['settings-gcal-status']({ sender: 'other' }))?.ok, false, '설정 창이 아니면 거절');
+  await handlers['settings-gcal-status'](mine);
+  await handlers['settings-gcal-start'](mine, { clientId: 'x.apps.googleusercontent.com', clientSecret: 'GOCSPX-s', extra: 'drop' });
+  assert.equal((await handlers['settings-gcal-start'](mine, { clientId: 'x'.repeat(201), clientSecret: '' }))?.ok, false);
+  assert.equal((await handlers['settings-gcal-start'](mine, null))?.ok, false);
+  await handlers['settings-gcal-remove'](mine);
+  assert.deepEqual(calls, [['status'], ['start', { clientId: 'x.apps.googleusercontent.com', clientSecret: 'GOCSPX-s' }], ['remove']]);
+});

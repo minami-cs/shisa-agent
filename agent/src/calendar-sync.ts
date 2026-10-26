@@ -17,6 +17,7 @@ import { CONNECTORS, calendarId, isWriteName, mcpTool, type CalDavAccount, type 
 import { CalDavError, caldavFailReason, fetchCalendarText, presetDavUrlOk } from "./caldav.ts";
 import { addLogSecret } from "./log.ts";
 import { calendarName, eventsInWindow, fetchIcsText, type FetchText } from "./ics.ts";
+import { GOOGLE_ACCOUNT_ID, GoogleCalError, googleEvents, googleFailReason, type GoogleClient, type GoogleRead } from "./calendar-google.ts";
 import { phrase } from "./phrases.ts";
 import { calendarAlertOf } from "./calendar-alert.ts";
 import { readCalendarState, writeCalendarState, type CalendarPartState, type CalendarState } from "./calendar-state.ts";
@@ -241,10 +242,12 @@ export const davText: DavText = (url, a, w) => {
 // api: 비공개 ICS 주소들(여러 캘린더면 여러 개, 별칭·켜짐과 함께). 하나라도 실패하면 ok=false, 이유는 처음 실패한 것(「별칭: 이유」).
 // parts: 캘린더마다 결과(성공한 캘린더의 일정은 바로 바꾸고, 실패한 캘린더는 예전 것을 둔다. CalendarSync.replaceParts). 꺼 둔 캘린더는 읽지 않는다
 // CalDAV 캘린더(account 있음)는 opts.caldav 의 그 계정으로 기간을 붙여 받는다(dav). 계정이 없거나 비밀번호가 없으면 그 캘린더만 실패
-export function icsSource(list: IcsCalendar[], opts: { timeZone: string; email?: string; caldav?: CalDavAccount[] }, fetchText: FetchText = fetchIcsText, dav: DavText = davText): CalendarSource {
+// Google 캘린더(account = GOOGLE_ACCOUNT_ID)는 opts.google(OAuth 클라이언트)과 로컬 토큰으로 일정 API 를 읽는다(calendar-google.ts). 클라이언트가 없으면 그 캘린더만 실패
+export function icsSource(list: IcsCalendar[], opts: { timeZone: string; email?: string; caldav?: CalDavAccount[]; google?: GoogleClient }, fetchText: FetchText = fetchIcsText, dav: DavText = davText, google: GoogleRead = googleEvents): CalendarSource {
   const cals = list.map((x, i) => (typeof x === "string" ? { id: calendarId(x), name: "", url: x, enabled: true, n: i + 1, account: undefined } : { id: x.id ?? calendarId(x.url), name: x.name?.trim() ?? "", url: x.url, enabled: x.enabled !== false, n: i + 1, account: x.account }));
   for (const c of cals) addLogSecret(c.url); // 주소가 어떤 모양이든 데몬 로그에 그대로 나오지 않게
   for (const a of opts.caldav ?? []) addLogSecret(a.password);
+  addLogSecret(opts.google?.clientSecret);
   const read = (c: (typeof cals)[number], w: { from: string; to: string }) => {
     if (!c.account) return fetchText(c.url);
     const a = opts.caldav?.find((x) => x.id === c.account);
@@ -262,20 +265,22 @@ export function icsSource(list: IcsCalendar[], opts: { timeZone: string; email?:
     for (const c of cals) {
       const fallback = c.name || (cals.length > 1 ? t("status.cal_n", { n: c.n }) : "");
       if (!c.enabled) { parts.push({ id: c.id, name: fallback || t("status.cal_default"), ok: true, off: true, events: 0 }); continue; }
+      const isGoogle = c.account === GOOGLE_ACCOUNT_ID;
       try {
-        const text = await read(c, w);
-        const name = c.name || calendarName(text) || fallback;
-        const got = eventsInWindow(text, Date.parse(w.from), Date.parse(w.to), opts).map((e) => ({ ...e, calId: c.id, ...(name ? { calendar: name } : {}), ...(name && (c.name || cals.length > 1) ? { tag: name } : {}) }));
+        const g = isGoogle ? await (opts.google ? google(opts.google, w, { timeZone: opts.timeZone }) : Promise.reject(new GoogleCalError("client", "no client"))) : null;
+        const text = g ? "" : await read(c, w);
+        const name = c.name || (g ? g.name : calendarName(text)) || fallback;
+        const got = (g ? g.events : eventsInWindow(text, Date.parse(w.from), Date.parse(w.to), opts)).map((e) => ({ ...e, calId: c.id, ...(name ? { calendar: name } : {}), ...(name && (c.name || cals.length > 1) ? { tag: name } : {}) }));
         events.push(...got);
         parts.push({ id: c.id, name: name || t("status.cal_default"), ok: true, events: got.length });
       }
       catch (e: any) {
         errors++;
-        const r = c.account ? caldavFailReason(e, davPreset(c.account)) : icsFailReason(e, c.url);
+        const r = isGoogle ? googleFailReason(e) : c.account ? caldavFailReason(e, davPreset(c.account)) : icsFailReason(e, c.url);
         const label = c.name || (cals.length > 1 ? t("status.cal_nth", { n: c.n }) : "");
         fail ??= label ? { code: r.code, reason: `${label}: ${r.reason}` } : r;
         parts.push({ id: c.id, name: fallback || t("status.cal_default"), ok: false, events: 0, reason: r.reason, code: r.code });
-        console.warn(`[calendar] ${c.account ? "CalDAV" : "ICS"} 실패(${c.n}/${cals.length}, ${r.code}):`, String(e?.message ?? e).slice(0, 80), e?.cause?.code ? `(${e.cause.code})` : "");
+        console.warn(`[calendar] ${isGoogle ? "Google" : c.account ? "CalDAV" : "ICS"} 실패(${c.n}/${cals.length}, ${r.code}):`, String(e?.message ?? e).slice(0, 80), e?.cause?.code ? `(${e.cause.code})` : "");
       }
     }
     return { ok: !errors && cals.length > 0, events, calls: on.length, errors, costUsd: 0, parts, ...(fail ? fail : {}) };
@@ -396,7 +401,7 @@ export const connKey = (conn: Conn | undefined): string => createHash("sha256").
 
 // 커넥터 설정 → 원천. off·준비 안 됨은 null
 export function sourceFor(conn: Conn): CalendarSource | null {
-  if (conn.mode === "api" && conn.cap === "calendar") return conn.calendars.length ? icsSource(conn.calendars, { timeZone: conn.timeZone, email: conn.email, caldav: conn.caldav }) : null;
+  if (conn.mode === "api" && conn.cap === "calendar") return conn.calendars.length ? icsSource(conn.calendars, { timeZone: conn.timeZone, email: conn.email, caldav: conn.caldav, google: conn.google }) : null;
   if (conn.mode === "mcp") return mcpCalendarSource(conn);
   return null;
 }

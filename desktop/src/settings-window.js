@@ -14,6 +14,7 @@ export const SETTINGS_SIZE = { width: 720, height: 760 };
 // deps: { BrowserWindow, ipcMain, shell, request(method, path, body?, timeoutMs?), preload, html, fromOurs(e), debug?, openPanel?(section), caps?(),
 //         sisa?() 앱의 AI 저장(publicView), disconnectBrain?(id), disconnectConnector?(cap), copyText?(text),
 //         calendars?() 연결된 캘린더(별칭·가린 이름·결과), addCalendar?({ name?, url }) 더하기, renameCalendar?(id, name), toggleCalendar?(id, on), removeCalendar?(id) 하나 빼기,
+//         googleCalendar?: { status(), start({ clientId, clientSecret }), remove() } Google 캘린더(OAuth, 읽기 전용),
 //         appPrefs?: { get() → { version, openAtLogin: { available, on, hint }, updateCheck, panelOverlay }, set(patch) } 「이 앱」 칸,
 //         upload?(method, path, name, mime, bytes) 파일 바이트 그대로 올리기(캐릭터 그림) }
 export function setupSettings(deps) {
@@ -94,6 +95,11 @@ export function setupSettings(deps) {
     ? deps.addCalendar({ url: b.url.trim(), ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name } : {}) }) : denied()));
   ipcMain.handle('settings-calendar-rename', (e, id, name) => (isMine(e) && okCalendarId(id) && okCalendarName(name) && deps.renameCalendar ? deps.renameCalendar(id, name) : denied()));
   ipcMain.handle('settings-calendar-toggle', (e, id, on) => (isMine(e) && okCalendarId(id) && typeof on === 'boolean' && deps.toggleCalendar ? deps.toggleCalendar(id, on) : denied()));
+  // Google 캘린더(OAuth): 렌더러가 보낸 값은 모양만 맞는 것만(클라이언트 ID·시크릿 각 200자까지)
+  ipcMain.handle('settings-gcal-status', (e) => (isMine(e) && deps.googleCalendar ? deps.googleCalendar.status() : denied()));
+  ipcMain.handle('settings-gcal-start', (e, b) => (isMine(e) && b && typeof b === 'object' && typeof b.clientId === 'string' && b.clientId.length <= 200 && typeof b.clientSecret === 'string' && b.clientSecret.length <= 200 && deps.googleCalendar
+    ? deps.googleCalendar.start({ clientId: b.clientId, clientSecret: b.clientSecret }) : denied()));
+  ipcMain.handle('settings-gcal-remove', (e) => (isMine(e) && deps.googleCalendar ? deps.googleCalendar.remove() : denied()));
   ipcMain.handle('settings-copy', (e, text) => (isMine(e) && typeof text === 'string' && text && deps.copyText ? deps.copyText(text) : denied()));
   // [설치 안내]·[AI 고르기] → 패널의 그 탭
   ipcMain.on('settings-open-panel', (e, section) => {

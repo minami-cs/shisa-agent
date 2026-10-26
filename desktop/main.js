@@ -1397,6 +1397,25 @@ function setupIPC() {
     renameCalendar: (id, name) => renameCalendar(id, name),
     toggleCalendar: (id, on) => toggleCalendar(id, on),
     removeCalendar: (id) => removeCalendar(id),
+    // Google 캘린더(OAuth): 데몬이 루프백 받는 곳을 열고 로그인 주소를 주면 기본 브라우저로 연다(accounts.google.com 주소만). 시크릿은 여기서 기록하지 않는다
+    googleCalendar: {
+      status: () => request('GET', '/connectors/calendar/google'),
+      start: async (body) => {
+        const r = await post('/connectors/calendar/google', body, 15_000);
+        if (r.ok && r.data?.ok && typeof r.data.url === 'string' && r.data.url.startsWith('https://accounts.google.com/')) {
+          shell.openExternal(r.data.url);
+          return { ok: true };
+        }
+        if (r.data?.error) return { ok: false, error: String(r.data.error) };
+        return { ok: false, error: r.status ? t('main.err_connect_status', { status: r.status }) : t('main.err_unreachable', { who: who() }) };
+      },
+      remove: async () => {
+        const r = await request('DELETE', '/connectors/calendar/google');
+        if (r.ok && r.data?.ok) { sendPanel('dashboard', {}); return { ok: true }; }
+        if (r.data?.error) return { ok: false, error: String(r.data.error) };
+        return { ok: false, error: r.status ? t('main.err_remove_status', { status: r.status }) : t('main.err_unreachable', { who: who() }) };
+      },
+    },
     copyText: (text) => { clipboard.writeText(text); return { ok: true }; },
     appPrefs,
     upload: (method, pathname, name, mime, bytes) => uploadBytes(method, pathname, name, mime, bytes),

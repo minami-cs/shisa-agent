@@ -7,6 +7,8 @@
 //                       enabled = false 면 저장은 두고 가져오지 않는다. 예전 모양(icsUrl 하나 · icsUrls 배열)도 calendars 로 읽는다.
 //                       네이버·iCloud 캘린더(CalDAV, 읽기 전용): caldav = [{ id, preset: "naver" | "icloud", user(네이버 아이디 · Apple ID 이메일), password(애플리케이션 비밀번호 · 앱 암호) }],
 //                       그 계정의 캘린더는 calendars 에 { …, url(캘린더 모음 주소), account: 계정 id } 로 같이 둔다(켜기·끄기·별칭·색이 ICS 와 같다)
+//                       Google 캘린더(OAuth, 읽기 전용): google = { clientId, clientSecret }(설정 창에서 넣는 OAuth 클라이언트), 기본 캘린더는 calendars 에
+//                       { …, url(일정 API 주소), account: "g-primary" } 로 둔다. 토큰은 설정 파일이 아니라 google-calendar-token.json 에만(calendar-google.ts)
 //   mode = "mcp"     — Claude Code 에 등록한 전용 MCP 서버(`claude mcp add --scope user …`). 브리핑·채팅 모델이 읽기 도구만 쓴다.
 //                       server = 등록한 서버 이름, preset = 알려진 서버의 도구 이름 묶음, tools = 역할 → 도구 이름(프리셋 덮어쓰기)
 //   mode = "imap"    — 메일만. 메일 주소 + 앱 비밀번호로 받은편지함을 읽기 전용으로 연다(mail-imap.ts: EXAMINE·BODY.PEEK, 쓰기 명령 없음).
@@ -94,7 +96,9 @@ export const CALDAV_PRESETS = ["naver", "icloud"] as const;
 export type CalDavPreset = (typeof CALDAV_PRESETS)[number];
 export const isCalDavPreset = (x: unknown): x is CalDavPreset => (CALDAV_PRESETS as readonly unknown[]).includes(x);
 export type CalDavAccount = { id: string; preset: CalDavPreset; user: string; password?: string };
-export type CalendarApiConn = { cap: "calendar"; mode: "api"; calendars: CalendarEntry[]; timeZone: string; email?: string; caldav?: CalDavAccount[] };
+// google: Google 캘린더 OAuth 클라이언트(clientSecret 은 비밀 — 설정 응답·로그·도움 보내기에 내보내지 않는다)
+export type GoogleOAuthClient = { clientId: string; clientSecret: string };
+export type CalendarApiConn = { cap: "calendar"; mode: "api"; calendars: CalendarEntry[]; timeZone: string; email?: string; caldav?: CalDavAccount[]; google?: GoogleOAuthClient };
 // 메일 IMAP: 계정 여러 개(accounts). password 는 비밀(설정 응답·로그·도움 보내기에 내보내지 않는다).
 // sinceHours: 몇 시간 전까지 받은 메일을 읽나(기본 24, 모든 계정 같이). skipPromotions: Gmail 이면 프로모션·소셜 탭을 서버 검색(X-GM-RAW)에서 뺀다(기본 켬)
 // id: 계정마다 고정 이름(설정에 없으면 주소로 만든다 — 예전 한 계정 모양도 같은 id). 같은 주소는 한 번만
@@ -141,12 +145,14 @@ export function resolveConnectors(env: NodeJS.ProcessEnv = process.env, file: Fi
     // api
     if (cap === "slack") return { cap, mode: "api", userToken: secret(env.CY_AGENT_SLACK_USER_TOKEN) || secret(c?.userToken) };
     const caldav = env.CY_AGENT_CALENDAR_ICS_URL ? [] : calDavAccounts(c);
+    const google = env.CY_AGENT_CALENDAR_ICS_URL ? undefined : googleClient(c);
     return {
       cap: "calendar", mode: "api",
       calendars: env.CY_AGENT_CALENDAR_ICS_URL ? calendarEntries(strs(env.CY_AGENT_CALENDAR_ICS_URL.split(/\s+/)).map((url) => ({ url }))) : calendarEntries(rawCalendars(c)),
       timeZone: str(c?.timeZone) ?? "Asia/Seoul",
       ...(str(c?.email) ? { email: str(c?.email)!.toLowerCase() } : {}),
       ...(caldav.length ? { caldav } : {}),
+      ...(google ? { google } : {}),
     };
   };
   return {
@@ -198,6 +204,13 @@ export function calDavAccounts(c: Record<string, any> | undefined): CalDavAccoun
     out.push({ id, preset, user, ...(password ? { password } : {}) });
   }
   return out;
+}
+
+// connectors.calendar.google 원본 → OAuth 클라이언트(둘 다 있을 때만)
+export function googleClient(c: Record<string, any> | undefined): GoogleOAuthClient | undefined {
+  const g = c?.google;
+  const clientId = str(g?.clientId), clientSecret = secret(g?.clientSecret);
+  return clientId && clientSecret ? { clientId, clientSecret } : undefined;
 }
 
 // 주소 → 계정 id(대소문자 무시, 늘 같은 값). 예전 한 계정 모양을 읽을 때·새로 추가할 때 같은 걸 쓴다
@@ -340,7 +353,7 @@ export function connectorStatus(c: Connectors = CONNECTORS, has: (server: string
           // CalDAV 캘린더 수(서비스마다). 계정을 못 찾으면 예전처럼 네이버로 센다
           const presetOf = (id: string) => x.caldav?.find((a) => a.id === id)?.preset ?? (id.startsWith("i-") ? "icloud" : "naver");
           const icloud = x.calendars.filter((e) => e.account && presetOf(e.account) === "icloud").length;
-          const naver = x.calendars.filter((e) => e.account).length - icloud;
+          const naver = x.calendars.filter((e) => e.account && e.account !== "g-primary").length - icloud; // g-primary = Google 캘린더(OAuth)
           const n = x.calendars.length;
           const head = naver && icloud ? t("status.cal_n_naver_icloud", { n, naver, icloud }) : naver ? t("status.cal_n_naver", { n, naver }) : icloud ? t("status.cal_n_icloud", { n, icloud }) : t("status.ics_n", { n });
           return { ...base, ready: true, calendars, detail: `${head}${off ? t("status.ics_off", { n: off }) : ""}` };
