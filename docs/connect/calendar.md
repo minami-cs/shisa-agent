@@ -227,6 +227,49 @@ iCloud 는 `caldav.icloud.com` 에서 로그인하면 실제 캘린더가 있는
 
 ---
 
+## (a-4) Google 캘린더: OAuth 로그인(읽기 전용)
+
+비공개 ICS 주소 대신 Google 계정으로 로그인해 **기본 캘린더(primary)** 일정을 읽습니다. 범위는 `https://www.googleapis.com/auth/calendar.readonly` 하나뿐이고, 일정을 만들거나 바꾸지 않습니다. OAuth 클라이언트는 각자 Google Cloud 에서 만듭니다(앱에 들어 있지 않습니다).
+
+### OAuth 클라이언트 만들기(한 번)
+
+1. [Google Cloud Console](https://console.cloud.google.com/) 에서 프로젝트를 고르거나 만듭니다.
+2. **API 및 서비스 → 라이브러리**에서 **Google Calendar API** 를 **사용 설정**합니다(안 하면 연결할 때 「Calendar API 가 꺼져 있어요」가 나옵니다).
+3. **API 및 서비스 → OAuth 동의 화면**(Google 인증 플랫폼): 사용자 유형 **외부**, 앱 이름·이메일을 넣고, **데이터 액세스(범위)**에 `.../auth/calendar.readonly` 를 더합니다. 게시 상태가 **테스트**면 **테스트 사용자**에 내 Google 계정을 넣습니다.
+4. **사용자 인증 정보 → 사용자 인증 정보 만들기 → OAuth 클라이언트 ID**, 애플리케이션 유형 **데스크톱 앱**. 만들어진 **클라이언트 ID**(`…apps.googleusercontent.com`)와 **클라이언트 보안 비밀**(`GOCSPX-…`)을 복사합니다.
+
+리디렉션 URI 는 `http://127.0.0.1:<포트>/oauth2callback` 입니다. 포트는 로그인할 때마다 데몬이 빈 포트를 골라 정합니다. **데스크톱 앱** 유형은 루프백(`127.0.0.1`) 주소를 아무 포트로나 받아 주므로 콘솔에 따로 등록하지 않습니다.
+
+### 연결하기
+
+설정 창 → 연결 상태의 **캘린더** 줄 아래 **Google 캘린더(OAuth 로그인, 읽기 전용)** 에 클라이언트 ID·시크릿을 넣고 **[Google 로그인]** 을 누릅니다. 기본 브라우저가 Google 로그인 화면을 엽니다(`access_type=offline`, `prompt=consent`, PKCE). 「캘린더 보기」를 허용하면 브라우저에 「Google 캘린더를 연결했어요」가 뜨고, 설정 창도 「연결됐어요」로 바뀝니다. 5분 안에 마치지 않으면 다시 눌러야 합니다.
+
+- 연결하기 전에 기본 캘린더를 한 번 읽어 봅니다. 못 읽으면(Calendar API 꺼짐, 권한 체크 안 함 등) 아무것도 저장하지 않고 이유를 보여 줍니다.
+- 액세스 토큰은 한 시간쯤이면 끝나서, 끝나 가면 리프레시 토큰으로 새로 받습니다.
+- 게시 상태가 **테스트**인 앱은 리프레시 토큰이 **7일**이면 끝납니다. 그러면 연결 카드·설정 창에 「Google 로그인이 만료됐어요」가 나오니 **[다시 로그인]** 을 누릅니다(시크릿은 비워 두면 저장된 것을 씁니다).
+- **[연결 끊기]** 는 토큰 파일과 Google 캘린더 줄을 지우고 Google 에 토큰 취소를 보냅니다. 클라이언트 ID·시크릿은 남겨 둡니다.
+
+### 저장 모양과 토큰
+
+```json
+{
+  "connectors": {
+    "calendar": {
+      "mode": "api",
+      "calendars": [
+        { "id": "…", "name": "me@gmail.com", "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events", "enabled": true, "account": "g-primary" }
+      ],
+      "google": { "clientId": "…apps.googleusercontent.com", "clientSecret": "GOCSPX-…" },
+      "timeZone": "Asia/Seoul"
+    }
+  }
+}
+```
+
+리프레시·액세스 토큰은 설정 파일이 아니라 `~/.cy-agent/google-calendar-token.json`(권한 600)에만 둡니다. 토큰·시크릿은 설정 응답·데몬 로그·화면에 넣지 않습니다. 가져온 일정(제목·시작·끝·참석자·장소·회의 링크)은 ICS·CalDAV 캘린더와 같은 모양이라 알림·캘린더 탭·AI 의 `calendar_events` 가 그대로 씁니다.
+
+---
+
 ## (b) mcp 모드: 캘린더 MCP 서버
 
 경량 모델이 매핑된 `listEvents` 도구 하나만 부르고, 결과를 시사의 일정 모양으로 옮깁니다(다른 도구는 훅이 막습니다). 동기화(30분)마다 작은 모델 비용이 듭니다.

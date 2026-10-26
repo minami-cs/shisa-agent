@@ -1242,7 +1242,85 @@ function calendarList() {
   });
 }
 function loadCalendars() {
+  loadGoogleCalendar();
   return cy.getCalendars?.().then((r) => { if (r?.ok && Array.isArray(r.items)) { calendars = r.items; renderRows(); } }).catch(() => {});
+}
+
+// 캘린더 줄 아래: Google 캘린더(OAuth, 읽기 전용) — 클라이언트 ID · 시크릿 칸 + [Google 로그인](메인이 브라우저를 연다) · 상태 한 줄 · [빼기].
+// 시크릿은 저장한 뒤 다시 보이지 않는다(비워 두면 저장된 것을 쓴다). 토큰은 화면에 오지 않는다. 로그인을 기다리는 동안 2초마다 상태를 본다
+const gcal = { status: null, clientId: null, secret: '', busy: false, msg: null, timer: 0 };
+function loadGoogleCalendar() {
+  return cy.googleCalendarStatus?.().then((r) => {
+    if (!r?.ok || !r.data || typeof r.data.phase !== 'string') return;
+    const before = gcal.status?.phase;
+    gcal.status = r.data;
+    if (r.data.phase === 'waiting') { clearTimeout(gcal.timer); gcal.timer = setTimeout(loadGoogleCalendar, 2000); }
+    if (before !== r.data.phase) {
+      if (before === 'waiting' && r.data.phase === 'connected') { gcal.msg = { ok: true, text: t('settings.gcal_connected') }; gcal.secret = ''; refreshRows(); return; }
+      if (before === 'waiting' && r.data.phase === 'failed') gcal.msg = { ok: false, text: r.data.reason || t('settings.gcal_failed') };
+      renderRows();
+    }
+  }).catch(() => {});
+}
+function googleCalendarBlock() {
+  const s = gcal.status;
+  const box = el('div', 'setup-folder gcal-oauth');
+  box.append(el('span', 'setup-pick-title', t('settings.gcal_title')), el('p', 'setup-blurb', t('settings.gcal_blurb')));
+  const field = (label, input, hint) => {
+    const l = el('label');
+    l.append(el('span', null, label), input);
+    if (hint) l.append(el('small', 'muted', hint));
+    return l;
+  };
+  const id = el('input', 'gcal-client-id');
+  id.type = 'text';
+  id.setAttribute('autocomplete', 'off');
+  id.setAttribute('spellcheck', 'false');
+  id.setAttribute('placeholder', '123456789012-abc….apps.googleusercontent.com');
+  id.value = gcal.clientId ?? s?.clientId ?? '';
+  id.addEventListener('input', () => { gcal.clientId = id.value; });
+  const secret = el('input', 'gcal-client-secret');
+  secret.type = 'password';
+  secret.setAttribute('autocomplete', 'off');
+  secret.setAttribute('placeholder', s?.hasSecret ? t('settings.gcal_secret_saved') : 'GOCSPX-…');
+  secret.value = gcal.secret;
+  secret.addEventListener('input', () => { gcal.secret = secret.value; });
+  const fields = el('div', 'setup-fields');
+  fields.append(field(t('settings.gcal_id_label'), id), field(t('settings.gcal_secret_label'), secret, t('settings.gcal_secret_hint')));
+  box.append(fields);
+  const phase = s?.phase ?? 'off';
+  const line = { off: t('settings.gcal_off'), waiting: t('settings.gcal_waiting'), connected: t('settings.gcal_on'), expired: s?.reason || t('settings.gcal_expired'), failed: s?.reason || t('settings.gcal_failed') }[phase] ?? '';
+  if (line) box.append(el('p', `meta gcal-state${phase === 'expired' || phase === 'failed' ? ' error' : ''}`, line));
+  if (gcal.msg) box.append(el('p', `setup-gate${gcal.msg.ok ? ' ok' : ''}`, gcal.msg.text));
+  const acts = el('div', 'acts');
+  const login = el('button', 'small primary', phase === 'connected' || phase === 'expired' ? t('settings.gcal_relogin') : t('settings.gcal_login'));
+  login.type = 'button';
+  login.disabled = gcal.busy;
+  login.addEventListener('click', async () => {
+    if (gcal.busy) return;
+    gcal.busy = true; gcal.msg = null; renderRows();
+    const r = await cy.googleCalendarStart?.({ clientId: (gcal.clientId ?? s?.clientId ?? '').trim(), clientSecret: gcal.secret }).catch(() => null);
+    gcal.busy = false;
+    gcal.msg = r?.ok ? { ok: true, text: t('settings.gcal_opened') } : { ok: false, text: r?.error || t('settings.offline_who', { who: who() }) };
+    renderRows();
+    if (r?.ok) loadGoogleCalendar();
+  });
+  acts.append(login);
+  if (phase === 'connected' || phase === 'expired') {
+    const rm = el('button', 'small ghost', t('settings.gcal_remove'));
+    rm.type = 'button';
+    rm.disabled = gcal.busy;
+    rm.addEventListener('click', async () => {
+      gcal.busy = true; renderRows();
+      const r = await cy.googleCalendarRemove?.().catch(() => null);
+      gcal.busy = false;
+      gcal.msg = r?.ok ? { ok: true, text: t('settings.gcal_removed') } : { ok: false, text: r?.error || t('settings.offline_who', { who: who() }) };
+      refreshRows();
+    });
+    acts.append(rm);
+  }
+  box.append(acts, el('small', 'setup-mail-note', t('settings.gcal_note')));
+  return box;
 }
 
 function rowEl(r) {
@@ -1286,6 +1364,7 @@ function rowEl(r) {
     }));
     if (cap === 'calendar') main.append(calendarList());
   }
+  if (capOfRow(r) === 'calendar' && cy.googleCalendarStatus) main.append(googleCalendarBlock());
   if (needsSetupHint(r)) {
     const b = el('button', 'small primary', t('settings.setup_guide'));
     b.type = 'button';

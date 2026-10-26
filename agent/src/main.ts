@@ -36,6 +36,8 @@ import { MailSync, withMailSync } from "./mail-sync.ts";
 import { connectMail, removeMailAccount } from "./mail-connect.ts";
 import { addCalendar, calendarCardRows, calendarList as calendarListOf } from "./calendar-connect.ts";
 import { connectCalDavCalendar, removeCalDavAccount, type CalDavConnectDeps } from "./calendar-caldav.ts";
+import { GoogleOAuth } from "./calendar-google-connect.ts";
+import { removeGoogleToken } from "./calendar-google.ts";
 import { calendarPick } from "./manual-projects.ts";
 import { CalendarView } from "./calendar-view.ts";
 import { setCalendarRead } from "./calendar-ai.ts";
@@ -233,6 +235,7 @@ function reloadConnectors(): { changed: boolean; restarting: boolean; applied?: 
   if (connectorsChanged({ ...cfg.connectors, calendar: next.calendar }, cfg.connectors)) {
     cfg.connectors.calendar = next.calendar;
     calendar.setConnector(next.calendar);
+    googleOAuth.prune(); // Google 캘린더 줄을 뺐으면 남은 토큰도 지운다
     applied = true;
     console.log(`[connectors] 캘린더 연결이 바뀜(${next.calendar.mode}), 바로 일정을 가져와요`);
     pushStatus();
@@ -295,6 +298,9 @@ const calDavDeps = (): CalDavConnectDeps => ({
   timeZone: () => { const c = cfg.connectors.calendar; return c.mode === "api" && c.cap === "calendar" ? c.timeZone : "Asia/Seoul"; },
   apply: () => { reloadConnectors(); }, // 캘린더만 바뀜: 다시 켜지 않고 원천을 바꿔 바로 가져온다(남은 게 없으면 멈춘다)
 });
+// Google 캘린더(OAuth, 읽기 전용): 브라우저 로그인(루프백) → 토큰은 google-calendar-token.json 에만 → 저장한 뒤 다시 읽기
+const googleOAuth = new GoogleOAuth({ ...calDavDeps(), state: () => calendar.state(), resync: () => { if (calendar.enabled) calendar.sync().catch(() => {}); } });
+googleOAuth.prune(); // 데몬이 꺼진 사이 캘린더 연결을 끊었으면 남은 토큰을 지운다
 
 await bus.listen(cfg.port, {
   approve: (id) => agent.approve(id),
@@ -446,6 +452,7 @@ await bus.listen(cfg.port, {
   naverCalendarConnect: (body) => connectCalDavCalendar("naver", body, calDavDeps()),
   icloudCalendarConnect: (body) => connectCalDavCalendar("icloud", body, calDavDeps()),
   calDavRemove: (id) => removeCalDavAccount(id, { path: join(HOME_DIR, "config.json"), apply: () => { reloadConnectors(); } }),
+  googleCalendar: { status: () => googleOAuth.status(), start: (body) => googleOAuth.start(body), remove: () => googleOAuth.remove() },
   // 메일(앱 비밀번호) 계정 추가·바꾸기: 로그인해 보고 되면 저장 → 메모리도 바로(가져온 메일은 그대로 그 계정의 동기화 결과로)
   mailConnect: (body) => connectMail(body, {
     path: join(HOME_DIR, "config.json"), current: () => cfg.connectors.mail,
@@ -473,7 +480,7 @@ await bus.listen(cfg.port, {
     path: join(HOME_DIR, "config.json"), cfg, reload: reloadConnectors,
     changed: () => {
       console.log(`[connectors] ${String(cap)} 연결 해제`);
-      if (cap === "calendar") calendar.disable(); // 동기화·회의 알림을 바로 멈춘다
+      if (cap === "calendar") { calendar.disable(); googleOAuth.stop(); removeGoogleToken(); } // 동기화·회의 알림을 바로 멈춘다. Google 토큰도 지운다
       if (cap === "mail") mailSync.disable(); // 가져온 메일도 지운다
       if (cap === "slack") try { slackIngester.transport = null; } catch { /* 아직 안 만들어졌으면 만들 때 off 를 읽는다 */ } // 다음 수집부터 안 한다
       pushStatus();
@@ -685,6 +692,7 @@ async function shutdown() {
   console.log("[cy-agent] 끄는 중 — 집중 기록·캔버스를 정리하고 끝낼게요");
   bus.stopping = true; // GET /status stopping: true — 새로 뜬 앱이 이 데몬이 곧 사라질 걸 안다
   stopCalendar();
+  googleOAuth.stop();
   stopMail();
   try { focus.checkpoint(); } catch { /* 꺼지는 중 */ }
   await canvas.flush().catch(() => {});

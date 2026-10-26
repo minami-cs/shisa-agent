@@ -30,6 +30,10 @@ contextBridge.exposeInMainWorld('cy', {
   renameCalendar: (id, name) => ipcRenderer.invoke('settings-calendar-rename', String(id || ''), String(name ?? '')),
   toggleCalendar: (id, on) => ipcRenderer.invoke('settings-calendar-toggle', String(id || ''), !!on),
   removeCalendar: (id) => ipcRenderer.invoke('settings-calendar-remove', String(id || '')),
+  // Google 캘린더(OAuth, 읽기 전용): 상태 { ok, data: { phase, clientId, hasSecret, reason? } } · 로그인 { clientId, clientSecret }(메인이 브라우저를 연다) → { ok, error? } · 빼기
+  googleCalendarStatus: () => ipcRenderer.invoke('settings-gcal-status'),
+  googleCalendarStart: (body) => ipcRenderer.invoke('settings-gcal-start', { clientId: String(body?.clientId ?? ''), clientSecret: String(body?.clientSecret ?? '') }),
+  googleCalendarRemove: () => ipcRenderer.invoke('settings-gcal-remove'),
   copyText: (text) => ipcRenderer.invoke('settings-copy', String(text || '')),
   openPanel: (section) => ipcRenderer.send('settings-open-panel', String(section)), // 'setup'(설치 안내) | 'models'(AI 고르기)
   getAppPrefs: () => ipcRenderer.invoke('settings-app-get'), // { version, openAtLogin: { available, on, hint }, updateCheck, panelOverlay, clickSwap, appIcon }

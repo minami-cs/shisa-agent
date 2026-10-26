@@ -119,6 +119,7 @@ export async function connectCalDavCalendar(preset: CalDavPreset, body: unknown,
     timeZone: typeof v.timeZone === "string" && v.timeZone.trim() ? v.timeZone : "Asia/Seoul",
     ...(v.email !== undefined ? { email: v.email } : {}),
     caldav,
+    ...(v.google ? { google: v.google } : {}),
   };
   try { writeCalendarConnector(deps.path, value); } catch (e: any) { return { ok: false, status: 500, error: String(e?.message ?? e) }; }
   console.log(`[calendar] ${svc.label} 연결함(캘린더 ${kept.length}개, 일정 ${events}개${same ? ", 비밀번호 바꿈" : ""})`);
@@ -138,7 +139,7 @@ export function removeCalDavAccount(id: unknown, deps: { path: string; apply: ()
     const calendars = v.calendars.filter((c) => c.account !== id);
     const caldav = accounts.filter((a) => a.id !== id);
     const value = calendars.length
-      ? { mode: "api", calendars, timeZone: typeof v.timeZone === "string" && v.timeZone.trim() ? v.timeZone : "Asia/Seoul", ...(v.email !== undefined ? { email: v.email } : {}), ...(caldav.length ? { caldav } : {}) }
+      ? { mode: "api", calendars, timeZone: typeof v.timeZone === "string" && v.timeZone.trim() ? v.timeZone : "Asia/Seoul", ...(v.email !== undefined ? { email: v.email } : {}), ...(caldav.length ? { caldav } : {}), ...(v.google ? { google: v.google } : {}) }
       : { mode: "off" };
     writeCalendarConnector(deps.path, value);
     console.log(`[calendar] ${gone?.preset === "icloud" ? "iCloud" : "네이버"} 캘린더 계정 뺌(캘린더 ${v.calendars.length - calendars.length}개, 남은 캘린더 ${calendars.length}개)`);
