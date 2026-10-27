@@ -354,8 +354,12 @@ export function connectorStatus(c: Connectors = CONNECTORS, has: (server: string
           const presetOf = (id: string) => x.caldav?.find((a) => a.id === id)?.preset ?? (id.startsWith("i-") ? "icloud" : "naver");
           const icloud = x.calendars.filter((e) => e.account && presetOf(e.account) === "icloud").length;
           const naver = x.calendars.filter((e) => e.account && e.account !== "g-primary").length - icloud; // g-primary = Google 캘린더(OAuth)
+          const google = x.calendars.filter((e) => e.account === "g-primary").length;
           const n = x.calendars.length;
-          const head = naver && icloud ? t("status.cal_n_naver_icloud", { n, naver, icloud }) : naver ? t("status.cal_n_naver", { n, naver }) : icloud ? t("status.cal_n_icloud", { n, icloud }) : t("status.ics_n", { n });
+          // Google(OAuth)이 있으면 종류마다 따로 센다(「ICS 1개 · Google 1개」) — ICS 로 같이 세지 않게
+          const parts = ([[n - naver - icloud - google, "status.cal_part_ics"], [google, "status.cal_part_google"], [naver, "status.cal_part_naver"], [icloud, "status.cal_part_icloud"]] as const).filter(([k]) => k > 0);
+          const head = google ? (parts.length === 1 ? t("status.gcal_n", { n }) : parts.map(([k, key]) => t(key, { n: k })).join(" · "))
+            : naver && icloud ? t("status.cal_n_naver_icloud", { n, naver, icloud }) : naver ? t("status.cal_n_naver", { n, naver }) : icloud ? t("status.cal_n_icloud", { n, icloud }) : t("status.ics_n", { n });
           return { ...base, ready: true, calendars, detail: `${head}${off ? t("status.ics_off", { n: off }) : ""}` };
         }
     }

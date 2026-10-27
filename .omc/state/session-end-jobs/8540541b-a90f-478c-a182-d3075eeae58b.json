@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "jobId": "d7a550cd-860f-4bd8-9c4f-b07094090e45",
+  "sessionId": "8540541b-a90f-478c-a182-d3075eeae58b",
+  "scopeKey": "eb954f3a9e5ff9009b6dfcb8cbf1b95bfb8867c201020d0c1548291c5dc57f5d",
+  "revision": 13,
+  "createdAt": "2026-10-27T02:01:34.288Z",
+  "updatedAt": "2026-10-27T02:01:34.604Z",
+  "producerGraceExpiresAt": "2026-10-27T02:02:04.289Z",
+  "bestEffortDeadlineAt": "2026-10-27T02:02:55.289Z",
+  "producers": {
+    "core": {
+      "state": "sealed",
+      "intentKey": "163e899417de346094d4383186e8cb85372687ebd54750ccd4e69269ee86154d",
+      "payloadDigest": "163e899417de346094d4383186e8cb85372687ebd54750ccd4e69269ee86154d",
+      "sealedAt": "2026-10-27T02:01:34.338Z",
+      "sealedBy": "foreground"
+    },
+    "wiki": {
+      "state": "no-op",
+      "sealedAt": "2026-10-27T02:01:34.288Z",
+      "sealedBy": "wiki-producer"
+    }
+  },
+  "actions": {
+    "foreground-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 0,
+      "idempotencyKey": "febf6dba2f2536433960a07f7cedce72e946b43ced0896570df80f017b8914d2",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {},
+        "foregroundResult": {
+          "removedTransientFiles": 1,
+          "completedAt": "2026-10-27T02:01:34.338Z"
+        }
+      },
+      "budgetMs": 9000,
+      "completedAt": "2026-10-27T02:01:34.338Z",
+      "lastOutcomeCode": "completed"
+    },
+    "wiki-capture": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 0,
+      "idempotencyKey": "1719cd1ef5b51e0269b78c4cb8c9308c9c1f7b82fd1c067fc034c060f23863f5",
+      "payload": {},
+      "budgetMs": 9000,
+      "completedAt": "2026-10-27T02:01:34.288Z"
+    },
+    "team-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "cee6ac31df545408e1e822247ac249b3f8182a98a5fe8e448ae3b251e55bdee1",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000,
+      "claimedAt": "2026-10-27T02:01:34.387Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "98821989-db66-48d8-b18e-0ec6d5d33fc7",
+        "phase": "terminal",
+        "deadlineAt": "2026-10-27T02:01:44.348Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-10-27T02:01:34.519Z"
+    },
+    "python-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "claimed",
+      "attempts": 1,
+      "idempotencyKey": "1f1370c4ac056606059d517e2f106b602d8cbcb04587b3fcc5f3b9f89e649cd0",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000,
+      "claimantNonce": "64135e06-68b1-4775-8d02-5e2a5885506d",
+      "claimedAt": "2026-10-27T02:01:34.541Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "63318b69-6417-4e2d-a4c7-be6a8bb347b2",
+        "phase": "armed",
+        "deadlineAt": "2026-10-27T02:01:44.348Z"
+      }
+    },
+    "reply-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "0b3a8b47c28b26d56aca004d4f572b96c118f16819c0d35162418816f9a5420a",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "callback": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "d068ede2655bf89e0c0950e087d0603d7dcf45538e94f20a654d08c6f4841895",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    },
+    "notification": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "89c0438ff63097ce04beb60efb87292ff68a7af350a0ee331f3de9dbf42d62fc",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    },
+    "openclaw": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "31fe8f6e1cf204e27006de511df257326fdd98655122ca437013e8779ffc735b",
+      "payload": {
+        "transcriptPath": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+        "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+        "reason": "other",
+        "input": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "transcript_path": "/Users/mina/.claude/projects/-Users-mina--cy-agent-worktrees-shisa-agent-7d0232c8/8540541b-a90f-478c-a182-d3075eeae58b.jsonl",
+          "cwd": "/Users/mina/.cy-agent/worktrees/shisa-agent-7d0232c8",
+          "prompt_id": "23dc577e-5102-41a0-be64-a6ce6034dd7e",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "metrics": {
+          "session_id": "8540541b-a90f-478c-a182-d3075eeae58b",
+          "ended_at": "2026-10-27T02:01:34.285Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        },
+        "initialTeamNames": [],
+        "openClawEnabled": false,
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    }
+  },
+  "owner": {
+    "nonce": "64135e06-68b1-4775-8d02-5e2a5885506d",
+    "pid": 79061,
+    "processStartIdentity": "1793066494000",
+    "claimedAt": "2026-10-27T02:01:34.371Z",
+    "heartbeatAt": "2026-10-27T02:01:34.551Z",
+    "leaseExpiresAt": "2026-10-27T02:01:35.301Z",
+    "runDeadlineAt": "2026-10-27T02:01:44.348Z",
+    "leaseGeneration": 4,
+    "claimedFromRevision": 2
+  },
+  "phase": "processing"
+}

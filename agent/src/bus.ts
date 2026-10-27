@@ -157,11 +157,12 @@ export type BusHandlers = {
   icloudCalendarConnect?: (body: unknown) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; status: number; error: string; code?: string }>;
   calDavRemove?: (id: string) => { ok: true; [k: string]: unknown } | { ok: false; status: number; error: string };
   // Google 캘린더(OAuth, 읽기 전용, calendar-google-connect.ts): GET /connectors/calendar/google(상태) · POST { clientId, clientSecret? }(로그인 주소를 돌려준다)
-  // · DELETE(토큰·그 캘린더 줄 지우기). 시크릿·토큰은 응답에 없다
+  // · DELETE(토큰·그 캘린더 줄 지우기) · POST /connectors/calendar/google/cancel(기다리던 로그인 그만두기). 시크릿·토큰은 응답에 없다
   googleCalendar?: {
     status: () => unknown;
     start: (body: unknown) => Promise<{ ok: true; [k: string]: unknown } | { ok: false; status: number; error: string }>;
     remove: () => { ok: true; [k: string]: unknown } | { ok: false; status: number; error: string };
+    cancel?: () => { ok: true; [k: string]: unknown };
   };
   // 캘린더 탭: 보는 기간의 일정(캘린더마다 id·별칭·색). GET /calendar/events?from=&to=(&fresh=1) — calendar-view.ts. 없으면 503
   calendarEvents?: (range: { from: string; to: string; fresh: boolean }) => Promise<unknown>;
@@ -687,6 +688,10 @@ export class Bus {
         if (!h.googleCalendar) return json(res, 503, { error: "google calendar unavailable" });
         const r = await h.googleCalendar.start(await readJson(req));
         return r.ok ? json(res, 200, r) : json(res, r.status, { error: r.error });
+      }
+      if (url.pathname === "/connectors/calendar/google/cancel") {
+        if (!h.googleCalendar?.cancel) return json(res, 503, { error: "google calendar unavailable" });
+        return json(res, 200, h.googleCalendar.cancel());
       }
       if (url.pathname === "/connectors/mail") {
         if (!h.mailConnect) return json(res, 503, { error: "mail connect unavailable" });

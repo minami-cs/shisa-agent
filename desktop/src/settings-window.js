@@ -5,7 +5,7 @@ import { okCharacterId } from './character.js';
 import { cleanUpload } from './attachments.js';
 import { sanitizeGuidelineAdd, sanitizeGuidelinePatch, okGuidelineId } from './guidelines.js';
 import { okBrainId, okCap } from './disconnect.js';
-import { okCalendarId, okCalendarName, okCalendarUrl } from './calendars.js';
+import { okCalendarId, okCalendarName, okCalendarUrl, GOOGLE_CLOUD_CREDENTIALS_URL } from './calendars.js';
 import { denied } from './denied.js';
 import { t } from './i18n.js';
 
@@ -14,7 +14,7 @@ export const SETTINGS_SIZE = { width: 720, height: 760 };
 // deps: { BrowserWindow, ipcMain, shell, request(method, path, body?, timeoutMs?), preload, html, fromOurs(e), debug?, openPanel?(section), caps?(),
 //         sisa?() 앱의 AI 저장(publicView), disconnectBrain?(id), disconnectConnector?(cap), copyText?(text),
 //         calendars?() 연결된 캘린더(별칭·가린 이름·결과), addCalendar?({ name?, url }) 더하기, renameCalendar?(id, name), toggleCalendar?(id, on), removeCalendar?(id) 하나 빼기,
-//         googleCalendar?: { status(), start({ clientId, clientSecret }), remove() } Google 캘린더(OAuth, 읽기 전용),
+//         googleCalendar?: { status(), start({ clientId, clientSecret }), remove(), cancel?() } Google 캘린더(OAuth, 읽기 전용),
 //         appPrefs?: { get() → { version, openAtLogin: { available, on, hint }, updateCheck, panelOverlay }, set(patch) } 「이 앱」 칸,
 //         upload?(method, path, name, mime, bytes) 파일 바이트 그대로 올리기(캐릭터 그림) }
 export function setupSettings(deps) {
@@ -84,9 +84,9 @@ export function setupSettings(deps) {
     const t = typeof q === 'string' ? q.replace(/\s+/g, ' ').trim() : '';
     return isMine(e) && t && t.length <= 60 ? deps.request('GET', `/weather/search?q=${encodeURIComponent(t)}`, undefined, 15000) : denied();
   });
-  // 출처 링크(「날씨: Open-Meteo」·CC BY 4.0): 정해 둔 두 주소만 기본 브라우저로
+  // 출처 링크(「날씨: Open-Meteo」·CC BY 4.0) · Google 캘린더 칸의 [Google Cloud 콘솔 열기]: 정해 둔 주소만 기본 브라우저로
   ipcMain.on('settings-open-source', (e, which) => {
-    const url = { weather: WEATHER_ATTRIBUTION.url, license: WEATHER_ATTRIBUTION.licenseUrl }[which];
+    const url = { weather: WEATHER_ATTRIBUTION.url, license: WEATHER_ATTRIBUTION.licenseUrl, gcloud: GOOGLE_CLOUD_CREDENTIALS_URL }[which];
     if (isMine(e) && url) deps.shell?.openExternal?.(url);
   });
   ipcMain.handle('settings-calendars', (e) => (isMine(e) && deps.calendars ? deps.calendars() : denied()));
@@ -100,6 +100,7 @@ export function setupSettings(deps) {
   ipcMain.handle('settings-gcal-start', (e, b) => (isMine(e) && b && typeof b === 'object' && typeof b.clientId === 'string' && b.clientId.length <= 200 && typeof b.clientSecret === 'string' && b.clientSecret.length <= 200 && deps.googleCalendar
     ? deps.googleCalendar.start({ clientId: b.clientId, clientSecret: b.clientSecret }) : denied()));
   ipcMain.handle('settings-gcal-remove', (e) => (isMine(e) && deps.googleCalendar ? deps.googleCalendar.remove() : denied()));
+  ipcMain.handle('settings-gcal-cancel', (e) => (isMine(e) && deps.googleCalendar?.cancel ? deps.googleCalendar.cancel() : denied()));
   ipcMain.handle('settings-copy', (e, text) => (isMine(e) && typeof text === 'string' && text && deps.copyText ? deps.copyText(text) : denied()));
   // [설치 안내]·[AI 고르기] → 패널의 그 탭
   ipcMain.on('settings-open-panel', (e, section) => {

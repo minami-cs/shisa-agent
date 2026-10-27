@@ -137,6 +137,15 @@ export const CALENDAR_TITLE = { get gcal() { return t('settings.cal_title_gcal')
 // 설치 카드(gcal·outlook)가 세는 종류: 구글 카드는 구글 주소, Outlook 카드는 그 밖(Outlook·다른 ICS). 네이버·iCloud 는 따로(그 캘린더 카드)
 export const cardOfKind = (kind) => (kind === 'gcal' ? 'gcal' : kind === 'naver' || kind === 'icloud' ? kind : 'outlook');
 
+// Google 캘린더(OAuth) 칸: 클라이언트 ID 를 고칠 때마다 보는 이유. '' = 됨, 'empty' = 비었음, 'bad' = …apps.googleusercontent.com 으로 끝나지 않음
+export function gcalClientIdProblem(v) {
+  const s = typeof v === 'string' ? v.trim() : '';
+  if (!s) return 'empty';
+  return s.endsWith('.apps.googleusercontent.com') ? '' : 'bad';
+}
+// [Google Cloud 콘솔 열기]: OAuth 클라이언트(사용자 인증 정보) 화면. 설정 창 메인이 이 주소만 기본 브라우저로 연다
+export const GOOGLE_CLOUD_CREDENTIALS_URL = 'https://console.cloud.google.com/apis/credentials';
+
 // 이름 앞부분만: 4글자(짧으면 절반, 적어도 1글자) + …
 const head = (s) => `${s.slice(0, Math.max(1, Math.min(4, Math.ceil(s.length / 2))))}…`;
 
@@ -169,7 +178,8 @@ export function calendarRows(cfg, hash) {
   const users = calDavUsers(cfg);
   return calendarEntries(cfg).map((e, i) => {
     const kind = calendarKind(e.url, e.account, users.get(e.account)?.preset);
-    const label = kind === 'naver' || kind === 'icloud' ? users.get(e.account)?.user || CALENDAR_TITLE[kind] : e.account === 'g-primary' ? 'Google OAuth' : maskCalendarUrl(e.url);
+    // Google(OAuth) 줄은 주소(googleapis…) 대신 「Google 로그인」 — 캘린더 이름(기본 캘린더면 계정 메일)은 별칭 자리에 같이 보인다
+    const label = kind === 'naver' || kind === 'icloud' ? users.get(e.account)?.user || CALENDAR_TITLE[kind] : e.account === 'g-primary' ? t('settings.gcal_row_label') : maskCalendarUrl(e.url);
     return { id: idOf(e, hash), kind, title: CALENDAR_TITLE[kind], label, name: e.name || t('settings.cal_n', { n: i + 1 }), named: !!e.name, enabled: e.enabled, ...(e.account ? { account: e.account } : {}) };
   });
 }

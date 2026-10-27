@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('cy', {
   // 캘린더 여러 개: 목록 { ok, items: [{ id, kind, title, label }] }(주소는 없음) · 하나 빼기(id) → { ok, items, note?, error? }
   // 날씨 지역 검색: 글자 → { ok, data: { ok, items: [{ name, label, latitude, longitude, timezone }] } }
   searchWeather: (q) => ipcRenderer.invoke('settings-weather-search', String(q ?? '')),
-  openSource: (which) => ipcRenderer.send('settings-open-source', String(which)), // 'weather'(Open-Meteo) | 'license'(CC BY 4.0)
+  openSource: (which) => ipcRenderer.send('settings-open-source', String(which)), // 'weather'(Open-Meteo) | 'license'(CC BY 4.0) | 'gcloud'(Google Cloud 콘솔 사용자 인증 정보)
   getCalendars: () => ipcRenderer.invoke('settings-calendars'),
   addCalendar: (body) => ipcRenderer.invoke('settings-calendar-add', { name: String(body?.name ?? ''), url: String(body?.url ?? '') }),
   renameCalendar: (id, name) => ipcRenderer.invoke('settings-calendar-rename', String(id || ''), String(name ?? '')),
@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('cy', {
   googleCalendarStatus: () => ipcRenderer.invoke('settings-gcal-status'),
   googleCalendarStart: (body) => ipcRenderer.invoke('settings-gcal-start', { clientId: String(body?.clientId ?? ''), clientSecret: String(body?.clientSecret ?? '') }),
   googleCalendarRemove: () => ipcRenderer.invoke('settings-gcal-remove'),
+  googleCalendarCancel: () => ipcRenderer.invoke('settings-gcal-cancel'), // 브라우저 로그인 기다리기 그만두기
   copyText: (text) => ipcRenderer.invoke('settings-copy', String(text || '')),
   openPanel: (section) => ipcRenderer.send('settings-open-panel', String(section)), // 'setup'(설치 안내) | 'models'(AI 고르기)
   getAppPrefs: () => ipcRenderer.invoke('settings-app-get'), // { version, openAtLogin: { available, on, hint }, updateCheck, panelOverlay, clickSwap, appIcon }
