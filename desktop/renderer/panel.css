@@ -1020,7 +1020,7 @@ button.small { padding: 2px 8px; font-size: 12px; }
 #chat-model[hidden] { display: none; }
 #chat-model-custom { height: 30px; flex: none; width: 130px; border: 1px solid var(--line); border-radius: 15px; padding: 0 10px; background: var(--bg); color: var(--fg); font: inherit; font-size: 12.5px; }
 #chat-model-custom[hidden] { display: none; }
-#chat-send { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
+#chat-send { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
 #chat-send svg { display: block; pointer-events: none; }
 #chat-send.empty:not(.stop) { opacity: 0.45; } /* 비었을 때 흐리게(눌러도 보낼 게 없다) */
 #chat-send.stop { background: var(--err); color: #fff; } /* 답하는 중 — 멈추기 */
