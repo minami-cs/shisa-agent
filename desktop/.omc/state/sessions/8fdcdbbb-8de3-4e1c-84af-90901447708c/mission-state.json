@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-10-27T02:25:40.823Z",
+  "missions": [
+    {
+      "id": "session:8fdcdbbb-8de3-4e1c-84af-90901447708c:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-10-27T02:19:22.174Z",
+      "updatedAt": "2026-10-27T02:25:40.823Z",
+      "status": "done",
+      "workerCount": 1,
+      "taskCounts": {
+        "total": 1,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 0,
+        "completed": 1,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "general-purpose:aa7a34b",
+          "role": "general-purpose",
+          "ownership": "aa7a34b7fddb8e8af",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-10-27T02:25:40.823Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:aa7a34b7fddb8e8af:2026-10-27T02:19:22.174Z",
+          "at": "2026-10-27T02:19:22.174Z",
+          "kind": "update",
+          "agent": "general-purpose:aa7a34b",
+          "detail": "started general-purpose:aa7a34b",
+          "sourceKey": "session-start:aa7a34b7fddb8e8af"
+        },
+        {
+          "id": "session-stop:aa7a34b7fddb8e8af:2026-10-27T02:23:15.435Z",
+          "at": "2026-10-27T02:23:15.435Z",
+          "kind": "completion",
+          "agent": "general-purpose:aa7a34b",
+          "detail": "completed",
+          "sourceKey": "session-stop:aa7a34b7fddb8e8af"
+        },
+        {
+          "id": "session-start:aa7a34b7fddb8e8af:2026-10-27T02:24:37.132Z",
+          "at": "2026-10-27T02:24:37.132Z",
+          "kind": "update",
+          "agent": "general-purpose:aa7a34b",
+          "detail": "started general-purpose:aa7a34b",
+          "sourceKey": "session-start:aa7a34b7fddb8e8af"
+        },
+        {
+          "id": "session-stop:aa7a34b7fddb8e8af:2026-10-27T02:25:40.823Z",
+          "at": "2026-10-27T02:25:40.823Z",
+          "kind": "completion",
+          "agent": "general-purpose:aa7a34b",
+          "detail": "completed",
+          "sourceKey": "session-stop:aa7a34b7fddb8e8af"
+        }
+      ]
+    }
+  ]
+}

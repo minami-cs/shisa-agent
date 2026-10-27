@@ -79,13 +79,55 @@ test('stepLabel', () => {
   assert.equal(stepLabel(latestStep(s)), wait);
 });
 
-test('summarizeReply: 마크다운 걷어내고 자르기', () => {
-  assert.deepEqual(summarizeReply('## 제목\n- **굵게** [링크](https://x) `코드`'), { text: '제목 굵게 링크 코드', truncated: false });
-  const long = summarizeReply('가'.repeat(300), 10);
-  assert.equal(long.truncated, true);
-  assert.equal([...long.text].length, 10);
-  assert.ok(long.text.endsWith('…'));
+test('summarizeReply: 마크다운 걷어내고 줄은 살린다(5줄 이하는 그대로)', () => {
+  assert.deepEqual(summarizeReply('## 제목\n- **굵게** [링크](https://x) `코드`'), { text: '제목\n굵게 링크 코드', truncated: false });
+  assert.deepEqual(summarizeReply('하나\n\n둘\n![그림](a.png) 셋\n4. 넷\n> 다섯'), { text: '하나\n둘\n그림 셋\n넷\n다섯', truncated: false });
+  assert.deepEqual(summarizeReply('• 점\n- [ ] 할 일\n- [x] 끝'), { text: '점\n할 일\n끝', truncated: false });
+  // 한 줄이 아무리 길어도 글자 수로 자르지 않는다(시각적 5줄은 CSS line-clamp)
+  assert.deepEqual(summarizeReply('가'.repeat(300)), { text: '가'.repeat(300), truncated: false });
+  // 형광펜·글자색은 그대로 남겨 말풍선이 그린다
+  assert.deepEqual(summarizeReply('==중요== :red[빨강]'), { text: '==중요== :red[빨강]', truncated: false });
+});
+
+test('summarizeReply: 6줄 이상이면 앞 5줄 + …', () => {
+  const r = summarizeReply('1줄\n2줄\n\n3줄\n4줄\n5줄\n6줄\n7줄');
+  assert.deepEqual(r, { text: '1줄\n2줄\n3줄\n4줄\n5줄…', truncated: true });
+  assert.deepEqual(summarizeReply('a\nb\nc', 2), { text: 'a\nb…', truncated: true });
+  assert.deepEqual(summarizeReply('제목\n===\n본문\n***'), { text: '제목\n본문', truncated: false }); // 제목 밑줄·가로줄은 줄로 안 친다
+});
+
+test('summarizeReply: 표 행은 칸을 · 로 잇고 구분선·콜아웃 머리·가로줄은 건너뛴다', () => {
+  const md = '| 이름 | 상태 |\n| --- | :---: |\n| **A** | 끝 |\n\n> [!WARNING]\n> 조심해요\n\n---\n> [!NOTE] 한 줄 머리';
+  assert.deepEqual(summarizeReply(md), { text: '이름 · 상태\nA · 끝\n조심해요\n한 줄 머리', truncated: false });
+});
+
+test('summarizeReply: 코드블록은 빼고 보이니 잘린 것으로(펼치기로 본다)', () => {
+  assert.deepEqual(summarizeReply('고쳤어요:\n```js\nconst x = 1;\n```'), { text: '고쳤어요:…', truncated: true });
+  assert.deepEqual(summarizeReply('```\nx\n```'), { text: '…', truncated: true });
+});
+
+test('summarizeReply: 빈 입력', () => {
   assert.deepEqual(summarizeReply(undefined), { text: '', truncated: false });
+  assert.deepEqual(summarizeReply(''), { text: '', truncated: false });
+  assert.deepEqual(summarizeReply('\n\n  \n| --- |'), { text: '', truncated: false });
+});
+
+test('replyBubble: 접힌 글 + 원문(full), 스레드면 대화 열기 · 아니면 잘렸을 때 채팅 섹션', async () => {
+  const { replyBubble } = await import('../src/chat.js');
+  const long = '1\n2\n3\n4\n5\n6';
+  assert.deepEqual(replyBubble({ chatId: 'c1', text: long, threadId: 't1' }), {
+    id: 'chat-c1', text: '1\n2\n3\n4\n5…', kind: 'info', ttlMs: 20000, reply: true, full: long, truncated: true, open: { section: 'chat', id: 't1' },
+  });
+  const b = replyBubble({ chatId: 'c2', text: long });
+  assert.equal(b.panelSection, 'chat');
+  assert.equal(b.open, undefined);
+  const s = replyBubble({ chatId: 'c3', text: '짧아요', stopped: true });
+  assert.equal(s.ttlMs, 5000);
+  assert.equal(s.truncated, false);
+  assert.equal(s.panelSection, undefined);
+  assert.equal(replyBubble({ chatId: 'c4', text: '안 됐어요', error: true }).kind, 'error');
+  assert.equal(replyBubble({ chatId: 'c5', text: '' }).text, '(빈 답)');
+  assert.equal(replyBubble({ chatId: 'c6', text: '```\nx\n```' }).panelSection, 'chat'); // 코드뿐이어도 펼치기·대화에서 보기로
 });
 
 test('대화 기록: 할 일을 집어 든 사용자 말은 todoId·todoTitle 유지, 답·잘못된 값은 버린다', () => {

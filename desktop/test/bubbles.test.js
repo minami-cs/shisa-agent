@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BubbleQueue, normalizeBubble, isSafeLink, DEFAULT_TTL } from '../src/bubbles.js';
+import { BubbleQueue, normalizeBubble, isSafeLink, DEFAULT_TTL, expandedMaxHeight, EXPANDED_MAX, EXPANDED_MIN } from '../src/bubbles.js';
 
 const b = (id, kind = 'info') => normalizeBubble({ id, text: id, kind });
 
@@ -204,4 +204,26 @@ test('아침 질문 말풍선: 「어제 남은 N개」 carry → 그대로 둘�
   assert.deepEqual(carryButtons(normalizeBubble({ id: 'x', text: 't' })), []);
   assert.ok(isCarryDecision('keep') && isCarryDecision('demote') && !isCarryDecision('open') && !isCarryDecision('x'));
   assert.equal(CARRY_CHOICES.filter((c) => c.primary).length, 1);
+});
+
+test('펼친 답 말풍선은 넘쳐도 먼저 버리지 않는다(접거나 닫을 때까지)', () => {
+  const q = new BubbleQueue();
+  q.add({ ...b('r'), expanded: true });
+  q.add(b('a'));
+  q.add(b('c'));
+  q.add(b('d'));
+  assert.deepEqual(q.visible().map((x) => x.id), ['r', 'c', 'd']);
+  // 다 펼친 것뿐이면 예전처럼 오래된 것부터
+  const z = new BubbleQueue({ max: 1 });
+  z.add({ ...b('x'), expanded: true });
+  z.add({ ...b('y'), expanded: true });
+  assert.deepEqual(z.visible().map((x) => x.id), ['y']);
+});
+
+test('expandedMaxHeight: 기본 한도 안, 창 위로 넘친 만큼 줄이고 최소는 지킨다', () => {
+  assert.equal(expandedMaxHeight(300, 40), 300);
+  assert.equal(expandedMaxHeight(360, -52), 360 - 60); // 위 여백 8 까지 60 넘침
+  assert.equal(expandedMaxHeight(500, 100), EXPANDED_MAX);
+  assert.equal(expandedMaxHeight(200, -400), EXPANDED_MIN);
+  assert.equal(expandedMaxHeight(undefined, 0), EXPANDED_MAX);
 });

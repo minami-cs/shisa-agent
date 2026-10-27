@@ -1,12 +1,12 @@
 // 렌더러 — 말풍선 그리기, 캐릭터 상태, 클릭 투과 토글, 드래그, 호버 채팅.
-import { BubbleQueue, normalizeBubble, assetUrl, sequence, stickerTtl, clickTarget, cleanMergeQuestion, linkLabel, looksMarkdown, bubbleMd, isListBubble, keepClasses, BUBBLE_PURIFY, isWaitingApproval, approvalButtons, tourButtons, carryButtons } from '../src/bubbles.js';
+import { BubbleQueue, normalizeBubble, assetUrl, sequence, stickerTtl, clickTarget, cleanMergeQuestion, linkLabel, looksMarkdown, bubbleMd, isListBubble, keepClasses, BUBBLE_PURIFY, expandedMaxHeight, EXPANDED_MAX, isWaitingApproval, approvalButtons, tourButtons, carryButtons } from '../src/bubbles.js';
 import { quickBubble, chipsOf, chipAction, answerBubble, dblclickAction, clickAction, isFocusChip, QUICK_ID } from '../src/quick-ask.js';
 import { bubbleAfterAction } from '../src/actions.js';
 import { runningCaption } from '../src/agents.js';
 import DOMPurify from './vendor/purify.js';
 import { Marked } from './vendor/marked.js';
 import { createMarkdown } from '../src/markdown.js';
-import { initialChat, chatReducer, isBusy, summarizeReply, stopTargets, busyCaption } from '../src/chat.js';
+import { initialChat, chatReducer, isBusy, replyBubble, stopTargets, busyCaption } from '../src/chat.js';
 import { createAttachTray } from './attach-tray.js';
 import { hasFiles, filesFromTransfer, ATTACH_ERRORS } from '../src/attachments.js';
 import { normFocus, focusBubble, doingBubble, focusSend } from '../src/focus.js';
@@ -261,10 +261,10 @@ function armExpiry() {
   expiryTimer = setTimeout(() => { expiryTimer = null; catchUp(); }, Math.max(0, n - Date.now()) + 15);
 }
 
-// 마우스 올려두거나 추가질문 입력 중이면 조금 더 둔다(만료 시각을 3초씩 미룬다)
+// 마우스 올려두거나 추가질문 입력 중이거나 펼친 답이면 조금 더 둔다(만료 시각을 3초씩 미룬다 — 접고 마우스가 떠나면 곧 사라진다)
 function bubbleBusy(id) {
   const el = els.get(id);
-  return !!el && (el.matches(':hover') || !!el.querySelector('.merge-ask:not([hidden])'));
+  return !!el && (el.matches(':hover') || !!el.querySelector('.merge-ask:not([hidden])') || !!current(id)?.expanded);
 }
 
 // 만료 시각이 지난 말풍선을 큐에서 뺀다(그리기는 render 가)
@@ -313,6 +313,7 @@ function buildEl(b) {
     if (a) { e.preventDefault(); e.stopPropagation(); cy.openLink(a.getAttribute('href')); return; } // 메인이 스킴을 다시 확인
     if (e.target.closest('button, input')) return;
     const now = current(b.id) ?? b;
+    if (now.expanded) return; // 펼친 답은 읽는(스크롤) 중 — 접기·✕·대화에서 보기로만
     const t = clickTarget(now);
     if (t.type === 'open') cy.openItem(t.section, t.id ?? null);
     if (!isWaitingApproval(now)) dismiss(b.id); // 승인 말풍선은 결정될 때까지 남긴다
@@ -370,10 +371,16 @@ function fillEl(item, b) {
   bubble.className = `bubble hit kind-${b.kind}`;
   bubble.classList.toggle('no-text', !b.text);
   bubble.classList.toggle('has-detail', !!b.detail);
-  bubble.classList.toggle('clickable', !!b.open);
+  bubble.classList.toggle('clickable', !!b.open && !b.expanded);
   const wide = isListBubble(b);
   bubble.classList.toggle('wide', wide);
-  setRich(bubble.querySelector('.text'), b.text);
+  bubble.classList.toggle('reply', !!b.reply);
+  bubble.classList.toggle('expanded', !!b.expanded);
+  const textEl = bubble.querySelector('.text');
+  if (!b.expanded) textEl.style.maxHeight = '';
+  // 펼친 답은 만료를 미루며 3초마다 다시 그려진다 — 글이 같으면 그대로 둬야 읽던 자리·고른 글이 안 날아간다
+  const src = b.expanded ? b.full : b.text;
+  if (textEl._src !== src) { textEl._src = src; setRich(textEl, src); }
   setRich(bubble.querySelector('.detail'), b.detail ?? '');
   const meta = bubble.querySelector('.meta');
   meta.replaceChildren();
@@ -434,16 +441,27 @@ function fillEl(item, b) {
   // ✕ 닫기(closable): 다시 그릴 때 겹치지 않게 하나만
   const bub = meta.parentElement;
   bub?.querySelector(':scope > button.close')?.remove();
-  if (b.closable && bub) {
+  if ((b.closable || b.expanded) && bub) { // 펼친 답은 접거나 닫을 때까지 남으니 ✕ 도
     const x = button('✕', 'close', () => dismiss(b.id));
     x.setAttribute('aria-label', ui('close'));
     x.title = ui('close');
     bub.append(x);
   }
-  if (b.open && !carryButtons(b).length) meta.append(button(b.openLabel ?? ui('open_panel'), 'link', () => { cy.openItem(b.open.section, b.open.id ?? null); if (!isWaitingApproval(current(b.id) ?? b)) dismiss(b.id); }));
-  else if (b.panelSection) meta.append(button(ui('open_panel'), 'link', () => { cy.openPanel(b.panelSection); dismiss(b.id); }));
+  // 채팅 답: 잘렸으면(또는 한 줄이 길어 5줄을 넘게 감기면 — 아래에서 잰다) 「펼치기」/「접기」
+  if (b.reply && (b.truncated || b.expanded)) meta.append(expandButton(b));
+  const openLabel = b.openLabel ?? ui(b.reply ? 'open_chat' : 'open_panel');
+  if (b.open && !carryButtons(b).length) meta.append(button(openLabel, 'link', () => { cy.openItem(b.open.section, b.open.id ?? null); if (!isWaitingApproval(current(b.id) ?? b)) dismiss(b.id); }));
+  else if (b.panelSection) meta.append(button(openLabel, 'link', () => { cy.openPanel(b.panelSection); dismiss(b.id); }));
   // 추가질문 입력줄은 머지 말풍선에서만
   if (!(b.actions === 'merge' && !b.decided)) closeMergeAsk(b.id, false);
+  if (b.reply) requestAnimationFrame(() => {
+    if (item._b !== b) return; // 그새 다시 그렸으면 그쪽이 잰다
+    if (b.expanded) fitExpanded(item);
+    else if (!meta.querySelector('.expand') && textEl.scrollHeight > textEl.clientHeight + 2) {
+      meta.prepend(expandButton(b));
+    }
+    recheckHit();
+  });
   // 넓은 목록 말풍선이 10줄을 넘으면 흐리게 자르고, 열 곳이 없으면 "패널에서 보기"(개요)
   if (wide) requestAnimationFrame(() => {
     const d = bubble.querySelector('.detail');
@@ -471,6 +489,29 @@ function setRich(el, src) {
     const c = keepClasses(x.getAttribute('class'));
     if (c) x.setAttribute('class', c); else x.removeAttribute('class');
   }
+}
+
+// 펼친 본문은 CSS 한도(EXPANDED_MAX) 안에서 스크롤, 말풍선 위가 창 위를 넘으면 그만큼 더 줄인다(창은 크기 고정이라 그 안에서).
+// 지금 건 높이 제한을 풀었을 때의 높이·위치로 다시 잰다 — 아래에 새 말풍선이 붙어 밀려 올라가도 맞춘다(ResizeObserver)
+function fitExpanded(item) {
+  const el = item.querySelector('.bubble.expanded > .text');
+  if (!el || !el.clientHeight) return;
+  const natural = Math.min(el.scrollHeight, EXPANDED_MAX);
+  const top = item.getBoundingClientRect().top - (natural - el.clientHeight);
+  const h = expandedMaxHeight(natural, top);
+  const want = h < natural ? `${h}px` : '';
+  if (el.style.maxHeight !== want) el.style.maxHeight = want;
+}
+new ResizeObserver(() => { for (const el of els.values()) fitExpanded(el); }).observe(stack);
+
+// 답 말풍선 펼치기 ↔ 접기: 같은 말풍선이 그 자리에서 원문 마크다운으로 커진다. 펼친 동안은 만료되지 않는다(bubbleBusy)
+function expandButton(b) {
+  return button(b.expanded ? ui('collapse') : ui('expand'), 'link expand', () => {
+    const now = current(b.id);
+    if (!now) return;
+    queue.update(b.id, { expanded: !now.expanded });
+    render();
+  });
 }
 
 function button(label, cls, onClick) {
@@ -664,8 +705,12 @@ function render() {
     const age = vis.length - 1 - i; // 0 = 최신(머리 쪽)
     el.classList.remove('newest', 'age-1', 'age-2');
     el.classList.add(age === 0 ? 'newest' : `age-${Math.min(age, 2)}`);
-    stack.append(el); // 순서 맞추기(이미 있으면 이동)
   });
+  // 순서 맞추기: 이미 제자리인 앞쪽은 그대로 둔다(옮기면 펼친 답의 스크롤·고른 글이 날아간다), 나머지만 뒤로
+  const inDom = [...stack.children].filter((x) => els.get(x.dataset.id) === x);
+  let k = 0;
+  while (k < vis.length && inDom[k] === els.get(vis[k].id)) k++;
+  for (const b of vis.slice(k)) stack.append(els.get(b.id));
   armExpiry();
   requestAnimationFrame(recheckHit);
 }
@@ -865,11 +910,7 @@ function syncChat() {
 }
 
 function showReply(r) {
-  const { text, truncated } = summarizeReply(r.text);
-  const b = { id: `chat-${r.chatId}`, text: text || t('overlay.empty_reply'), kind: r.error ? 'error' : 'info', ttlMs: r.stopped ? 5000 : 20000 };
-  // 캐릭터 대화방(스레드)의 답 — "패널에서 보기"는 그 대화를 연다
-  if (r.threadId) b.open = { section: 'chat', id: r.threadId };
-  else if (truncated) b.panelSection = 'chat';
+  const b = replyBubble(r); // 캐릭터 대화방(스레드)의 답 — "대화에서 보기"는 그 대화를 연다
   queue.add(b);
   schedule(b);
   render();

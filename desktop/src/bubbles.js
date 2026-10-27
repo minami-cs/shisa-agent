@@ -214,7 +214,10 @@ export class BubbleQueue {
       const live = this.items.filter((x) => !hidden.has(x.id));
       if (live.length <= this.max) return;
       const last = this.items.at(-1);
-      const victim = live.find((x) => x !== last && x.kind !== 'proposal') ?? live.find((x) => x !== last && !isWaitingApproval(x));
+      // 펼친 답 말풍선(expanded)은 사용자가 접거나 닫을 때까지 남긴다 — 다른 게 없을 때만 버린다
+      const victim = live.find((x) => x !== last && x.kind !== 'proposal' && !x.expanded)
+        ?? live.find((x) => x !== last && !isWaitingApproval(x) && !x.expanded)
+        ?? live.find((x) => x !== last && !isWaitingApproval(x));
       if (!victim) return;
       this.items.splice(this.items.indexOf(victim), 1);
     }
@@ -251,6 +254,16 @@ export function isListBubble(b) {
   const items = src.split('\n').filter((l) => /^\s*(?:[-*•]|\d+\.)\s+\S/.test(l)).length;
   const table = /(^|\n)\s*\|.*\|\s*\n\s*\|[\s:|-]+\|/.test(src);
   return items >= 2 || table;
+}
+
+// 펼친 답 말풍선 본문 높이 한도(px): 보통 EXPANDED_MAX(CSS 와 같은 값), 말풍선 위가 창 위 여백(margin)을 넘으면
+// 넘친 만큼 줄인다(창 밖으로 안 나가게). 그래도 EXPANDED_MIN 보다는 작게 안 한다
+export const EXPANDED_MAX = 360;
+export const EXPANDED_MIN = 96;
+export function expandedMaxHeight(bodyHeight, itemTop, margin = 8) {
+  const h = Number(bodyHeight), top = Number(itemTop);
+  if (!Number.isFinite(h) || !Number.isFinite(top)) return EXPANDED_MAX;
+  return Math.round(Math.max(EXPANDED_MIN, Math.min(EXPANDED_MAX, h - Math.max(0, margin - top))));
 }
 
 // 패널과 같은 거름 설정(+ 말풍선엔 제목·구분선 안 씀)
