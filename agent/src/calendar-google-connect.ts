@@ -234,6 +234,15 @@ export class GoogleOAuth {
     return true;
   }
 
+  // 로그인 취소(설정 창 [취소]): 받는 곳·타이머를 닫고(시간 초과와 같은 close) 기다리기 전으로 — 실패로 남기지 않는다.
+  // 코드를 이미 받아 토큰으로 바꾸는 중이면 그건 끝까지 간다
+  cancel(): { ok: true; cancelled: boolean } {
+    const had = !!this.flow;
+    this.close();
+    if (had) console.log("[calendar] Google 로그인 취소");
+    return { ok: true, cancelled: had };
+  }
+
   // 데몬을 끌 때
   stop() { this.close(); }
 }

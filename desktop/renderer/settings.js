@@ -20,6 +20,7 @@ import { who, whoId, setWho, onWho } from './who.js';
 onWho(() => { for (const n of document.querySelectorAll('.who')) n.textContent = who(); });
 import { brainRows, brainDisconnectCopy, connectorAction, capOfRow, connectorDisconnectCopy, disconnectControl } from '../src/disconnect.js';
 import { createCalendarEditor } from '../src/calendar-editor.js';
+import { gcalClientIdProblem } from '../src/calendars.js';
 import { t, bindLanguage, language } from '../src/i18n.js';
 
 const cy = window.cy;
@@ -1246,17 +1247,23 @@ function loadCalendars() {
   return cy.getCalendars?.().then((r) => { if (r?.ok && Array.isArray(r.items)) { calendars = r.items; renderRows(); } }).catch(() => {});
 }
 
-// 캘린더 줄 아래: Google 캘린더(OAuth, 읽기 전용) — 클라이언트 ID · 시크릿 칸 + [Google 로그인](메인이 브라우저를 연다) · 상태 한 줄 · [빼기].
+// 캘린더 줄 아래: Google 캘린더(OAuth, 읽기 전용) — 한 줄 설명 + [Google Cloud 콘솔 열기] · 클라이언트 ID · 시크릿 칸 + [Google 로그인](메인이 브라우저를 연다) · 상태 한 줄 · [연결 끊기].
+// 연결된 뒤에는 입력칸을 접고 상태 한 줄 + [다시 로그인]·[연결 끊기]·「클라이언트 바꾸기」만(누르면 펼친다). 로그인을 기다리는 동안은 [취소].
 // 시크릿은 저장한 뒤 다시 보이지 않는다(비워 두면 저장된 것을 쓴다). 토큰은 화면에 오지 않는다. 로그인을 기다리는 동안 2초마다 상태를 본다
-const gcal = { status: null, clientId: null, secret: '', busy: false, msg: null, timer: 0 };
+const gcal = { status: null, clientId: null, secret: '', busy: false, msg: null, timer: 0, linked: false, editClient: false, seq: 0 };
 function loadGoogleCalendar() {
+  const seq = gcal.seq;
   return cy.googleCalendarStatus?.().then((r) => {
+    if (seq !== gcal.seq) return; // [취소] 전에 물은 답(아직 「기다리는 중」)은 버린다
     if (!r?.ok || !r.data || typeof r.data.phase !== 'string') return;
     const before = gcal.status?.phase;
     gcal.status = r.data;
+    // 연결돼 있었나(다시 로그인을 기다리는 동안에도 접어 둔다)
+    if (r.data.phase === 'connected' || r.data.phase === 'expired') gcal.linked = true;
+    else if (r.data.phase !== 'waiting') gcal.linked = false;
     if (r.data.phase === 'waiting') { clearTimeout(gcal.timer); gcal.timer = setTimeout(loadGoogleCalendar, 2000); }
     if (before !== r.data.phase) {
-      if (before === 'waiting' && r.data.phase === 'connected') { gcal.msg = { ok: true, text: t('settings.gcal_connected') }; gcal.secret = ''; refreshRows(); return; }
+      if (before === 'waiting' && r.data.phase === 'connected') { gcal.msg = { ok: true, text: t('settings.gcal_connected') }; gcal.secret = ''; gcal.editClient = false; refreshRows(); return; }
       if (before === 'waiting' && r.data.phase === 'failed') gcal.msg = { ok: false, text: r.data.reason || t('settings.gcal_failed') };
       renderRows();
     }
@@ -1264,48 +1271,85 @@ function loadGoogleCalendar() {
 }
 function googleCalendarBlock() {
   const s = gcal.status;
-  const box = el('div', 'setup-folder gcal-oauth');
-  box.append(el('span', 'setup-pick-title', t('settings.gcal_title')), el('p', 'setup-blurb', t('settings.gcal_blurb')));
-  const field = (label, input, hint) => {
-    const l = el('label');
-    l.append(el('span', null, label), input);
-    if (hint) l.append(el('small', 'muted', hint));
-    return l;
-  };
-  const id = el('input', 'gcal-client-id');
-  id.type = 'text';
-  id.setAttribute('autocomplete', 'off');
-  id.setAttribute('spellcheck', 'false');
-  id.setAttribute('placeholder', '123456789012-abc….apps.googleusercontent.com');
-  id.value = gcal.clientId ?? s?.clientId ?? '';
-  id.addEventListener('input', () => { gcal.clientId = id.value; });
-  const secret = el('input', 'gcal-client-secret');
-  secret.type = 'password';
-  secret.setAttribute('autocomplete', 'off');
-  secret.setAttribute('placeholder', s?.hasSecret ? t('settings.gcal_secret_saved') : 'GOCSPX-…');
-  secret.value = gcal.secret;
-  secret.addEventListener('input', () => { gcal.secret = secret.value; });
-  const fields = el('div', 'setup-fields');
-  fields.append(field(t('settings.gcal_id_label'), id), field(t('settings.gcal_secret_label'), secret, t('settings.gcal_secret_hint')));
-  box.append(fields);
   const phase = s?.phase ?? 'off';
-  const line = { off: t('settings.gcal_off'), waiting: t('settings.gcal_waiting'), connected: t('settings.gcal_on'), expired: s?.reason || t('settings.gcal_expired'), failed: s?.reason || t('settings.gcal_failed') }[phase] ?? '';
+  const box = el('div', 'setup-folder gcal-oauth');
+  const blurb = el('p', 'setup-blurb', `${t('settings.gcal_blurb')} `);
+  const consoleLink = el('a', 'gcal-console', t('settings.gcal_console'));
+  consoleLink.href = '#';
+  consoleLink.addEventListener('click', (e) => { e.preventDefault(); cy.openSource?.('gcloud'); });
+  blurb.append(consoleLink);
+  box.append(el('span', 'setup-pick-title', t('settings.gcal_title')), blurb);
+  // 연결돼 있으면 입력칸을 접는다(클라이언트 ID·시크릿이 틀렸다는 만료면 펼친다)
+  const folded = gcal.linked && !gcal.editClient && !(phase === 'expired' && s?.code === 'client');
+  const login = el('button', 'small primary', phase === 'connected' || phase === 'expired' || (phase === 'waiting' && gcal.linked) ? t('settings.gcal_relogin') : t('settings.gcal_login'));
+  login.type = 'button';
+  const clientId = () => (gcal.clientId ?? s?.clientId ?? '');
+  if (!folded) {
+    const field = (label, input, hint) => {
+      const l = el('label');
+      l.append(el('span', null, label), input);
+      if (hint) l.append(hint);
+      return l;
+    };
+    const id = el('input', 'gcal-client-id');
+    id.type = 'text';
+    id.setAttribute('autocomplete', 'off');
+    id.setAttribute('spellcheck', 'false');
+    id.setAttribute('placeholder', '123456789012-abc….apps.googleusercontent.com');
+    id.value = clientId();
+    // 클라이언트 ID 검사: 비었으면 회색, 모양이 틀리면 빨강 힌트. 맞을 때까지 [Google 로그인]은 못 누른다(입력할 때마다 다시)
+    const hint = el('small', 'gcal-id-hint');
+    const check = () => {
+      const p = gcalClientIdProblem(id.value);
+      hint.textContent = p === 'empty' ? t('settings.gcal_id_empty') : p === 'bad' ? t('settings.gcal_id_bad') : '';
+      hint.style.display = p ? '' : 'none';
+      hint.classList.toggle('error', p === 'bad');
+      login.disabled = gcal.busy || !!p;
+    };
+    id.addEventListener('input', () => { gcal.clientId = id.value; check(); });
+    const secret = el('input', 'gcal-client-secret');
+    secret.type = 'password';
+    secret.setAttribute('autocomplete', 'off');
+    secret.setAttribute('placeholder', s?.hasSecret ? t('settings.gcal_secret_saved') : 'GOCSPX-…');
+    secret.value = gcal.secret;
+    secret.addEventListener('input', () => { gcal.secret = secret.value; });
+    const fields = el('div', 'setup-fields');
+    fields.append(field(t('settings.gcal_id_label'), id, hint), field(t('settings.gcal_secret_label'), secret));
+    box.append(fields);
+    check();
+  } else login.disabled = gcal.busy || !!gcalClientIdProblem(clientId());
+  const calName = calendars.find((c) => c.account === 'g-primary')?.name;
+  const line = { off: t('settings.gcal_off'), waiting: t('settings.gcal_waiting'), connected: calName ? t('settings.gcal_on_name', { name: calName }) : t('settings.gcal_on'), expired: s?.reason || t('settings.gcal_expired'), failed: s?.reason || t('settings.gcal_failed') }[phase] ?? '';
   if (line) box.append(el('p', `meta gcal-state${phase === 'expired' || phase === 'failed' ? ' error' : ''}`, line));
   if (gcal.msg) box.append(el('p', `setup-gate${gcal.msg.ok ? ' ok' : ''}`, gcal.msg.text));
   const acts = el('div', 'acts');
-  const login = el('button', 'small primary', phase === 'connected' || phase === 'expired' ? t('settings.gcal_relogin') : t('settings.gcal_login'));
-  login.type = 'button';
-  login.disabled = gcal.busy;
   login.addEventListener('click', async () => {
-    if (gcal.busy) return;
+    if (gcal.busy || gcalClientIdProblem(clientId())) return;
     gcal.busy = true; gcal.msg = null; renderRows();
-    const r = await cy.googleCalendarStart?.({ clientId: (gcal.clientId ?? s?.clientId ?? '').trim(), clientSecret: gcal.secret }).catch(() => null);
+    const r = await cy.googleCalendarStart?.({ clientId: clientId().trim(), clientSecret: gcal.secret }).catch(() => null);
     gcal.busy = false;
     gcal.msg = r?.ok ? { ok: true, text: t('settings.gcal_opened') } : { ok: false, text: r?.error || t('settings.offline_who', { who: who() }) };
     renderRows();
     if (r?.ok) loadGoogleCalendar();
   });
   acts.append(login);
+  // 브라우저 로그인을 기다리는 동안: [취소] → 데몬이 받는 곳·타이머를 닫고 기다리기 전 상태로
+  if (phase === 'waiting' && cy.googleCalendarCancel) {
+    const cancel = el('button', 'small ghost', t('settings.gcal_cancel'));
+    cancel.type = 'button';
+    cancel.disabled = gcal.busy;
+    cancel.addEventListener('click', async () => {
+      gcal.busy = true; gcal.seq++; clearTimeout(gcal.timer); renderRows();
+      const r = await cy.googleCalendarCancel().catch(() => null);
+      gcal.busy = false;
+      gcal.seq++;
+      gcal.msg = r?.ok ? null : { ok: false, text: r?.error || t('settings.offline_who', { who: who() }) };
+      if (r?.ok) gcal.status = null; // 다시 받은 상태를 「기다리다 연결됨」으로 읽지 않게
+      renderRows();
+      loadGoogleCalendar();
+    });
+    acts.append(cancel);
+  }
   if (phase === 'connected' || phase === 'expired') {
     const rm = el('button', 'small ghost', t('settings.gcal_remove'));
     rm.type = 'button';
@@ -1319,7 +1363,13 @@ function googleCalendarBlock() {
     });
     acts.append(rm);
   }
-  box.append(acts, el('small', 'setup-mail-note', t('settings.gcal_note')));
+  if (folded) {
+    const edit = el('a', 'gcal-edit-client', t('settings.gcal_change_client'));
+    edit.href = '#';
+    edit.addEventListener('click', (e) => { e.preventDefault(); gcal.editClient = true; renderRows(); });
+    acts.append(edit);
+  }
+  box.append(acts);
   return box;
 }
 

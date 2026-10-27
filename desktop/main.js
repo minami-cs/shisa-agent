@@ -1415,6 +1415,13 @@ function setupIPC() {
         if (r.data?.error) return { ok: false, error: String(r.data.error) };
         return { ok: false, error: r.status ? t('main.err_remove_status', { status: r.status }) : t('main.err_unreachable', { who: who() }) };
       },
+      // 로그인 기다리기 취소: 데몬이 받는 곳·타이머를 닫는다
+      cancel: async () => {
+        const r = await post('/connectors/calendar/google/cancel', {});
+        if (r.ok && r.data?.ok) return { ok: true };
+        if (r.data?.error) return { ok: false, error: String(r.data.error) };
+        return { ok: false, error: r.status ? t('main.err_connect_status', { status: r.status }) : t('main.err_unreachable', { who: who() }) };
+      },
     },
     copyText: (text) => { clipboard.writeText(text); return { ok: true }; },
     appPrefs,

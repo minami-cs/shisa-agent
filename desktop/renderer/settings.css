@@ -289,3 +289,18 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin:
 .cal-editor input[type="text"] { font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); min-width: 0; }
 .cal-editor .setup-gate { margin: 0; font-size: 12px; color: var(--err-fg); }
 .cal-editor .setup-gate.ok { color: var(--ok); }
+/* Google 캘린더(OAuth) 칸: 위 캘린더 목록과 같은 크기·색·간격으로(패널 전용 setup-* 규칙이 여기선 안 먹는다) */
+.gcal-oauth { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 6px; width: 100%; }
+.gcal-oauth .setup-pick-title { font-weight: 650; font-size: 12.5px; }
+.gcal-oauth .setup-blurb, .gcal-oauth small { display: block; color: var(--muted); font-size: 11.5px; font-weight: 450; line-height: 1.45; margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.gcal-oauth .setup-fields { display: grid; gap: 6px; }
+.gcal-oauth .setup-fields label { display: grid; gap: 2px; font-size: 12px; }
+.gcal-oauth input[type="text"], .gcal-oauth input[type="password"] { font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); min-width: 0; width: 100%; box-sizing: border-box; }
+.gcal-oauth .gcal-state { margin: 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.gcal-oauth .gcal-state.error { color: var(--err-fg); }
+.gcal-oauth .setup-gate { margin: 0; font-size: 12px; color: var(--err-fg); overflow-wrap: anywhere; }
+.gcal-oauth .setup-gate.ok { color: var(--ok); }
+.conn .gcal-oauth .acts { justify-content: flex-start; }
+.gcal-oauth small.gcal-id-hint.error { color: var(--err-fg); }
+.gcal-oauth a { color: inherit; }
+.gcal-oauth .acts .gcal-edit-client { align-self: center; font-size: 12px; color: var(--muted); }

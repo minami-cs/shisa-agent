@@ -293,3 +293,30 @@ test("GoogleOAuth: 다시 로그인이 실패하면 예전 토큰을 되돌리�
   assert.equal(g.prune(), false);
   assert.equal(readGoogleToken(tokenPath)?.refreshToken, "1//keep");
 });
+
+test("GoogleOAuth.cancel: 기다리던 로그인의 받는 곳을 닫고 기다리기 전으로(실패로 남기지 않는다) · 기다리는 게 없으면 그대로", async () => {
+  const dir = tmp();
+  const path = join(dir, "config.json");
+  writeFileSync(path, JSON.stringify({ connectors: { calendar: { mode: "off" } } }));
+  const g = new GoogleOAuth({ path, tokenPath: join(dir, "tok.json"), window: () => W, apply: () => assert.fail("저장하면 안 된다") });
+  assert.deepEqual(g.cancel(), { ok: true, cancelled: false });
+  const s = await g.start(CLIENT);
+  assert.ok(s.ok);
+  if (!s.ok) return;
+  assert.equal(g.status().phase, "waiting");
+  assert.deepEqual(g.cancel(), { ok: true, cancelled: true });
+  assert.equal(g.status().phase, "off");
+  assert.equal(g.status().reason, undefined);
+  await assert.rejects(fetch(`${s.redirectUri}?state=x&code=c`)); // 받는 곳이 닫혔다
+});
+
+test("연결 카드 요약: Google(OAuth)이 있으면 ICS 와 따로 센다(「ICS 1개 · Google 1개」), Google 만이면 「Google 캘린더 1개」", () => {
+  const status = (calendars: unknown[]) => {
+    const c = resolveConnectors({}, { connectors: { calendar: { mode: "api", calendars, google: CLIENT } } }).calendar as CalendarApiConn;
+    return connectorStatus({ ...resolveConnectors({}, {}), calendar: c }, () => false).find((x) => x.cap === "calendar")!.detail;
+  };
+  const G = { url: GOOGLE_EVENTS_URL, account: GOOGLE_ACCOUNT_ID };
+  assert.equal(status([{ url: "https://cal.example.com/a.ics" }, G]), "ICS 1개 · Google 1개");
+  assert.equal(status([G]), "Google 캘린더 1개");
+  assert.equal(status([{ url: "https://cal.example.com/a.ics" }]), "ICS 캘린더 1개"); // Google 이 없으면 예전 그대로
+});

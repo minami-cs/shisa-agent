@@ -452,7 +452,7 @@ await bus.listen(cfg.port, {
   naverCalendarConnect: (body) => connectCalDavCalendar("naver", body, calDavDeps()),
   icloudCalendarConnect: (body) => connectCalDavCalendar("icloud", body, calDavDeps()),
   calDavRemove: (id) => removeCalDavAccount(id, { path: join(HOME_DIR, "config.json"), apply: () => { reloadConnectors(); } }),
-  googleCalendar: { status: () => googleOAuth.status(), start: (body) => googleOAuth.start(body), remove: () => googleOAuth.remove() },
+  googleCalendar: { status: () => googleOAuth.status(), start: (body) => googleOAuth.start(body), remove: () => googleOAuth.remove(), cancel: () => googleOAuth.cancel() },
   // 메일(앱 비밀번호) 계정 추가·바꾸기: 로그인해 보고 되면 저장 → 메모리도 바로(가져온 메일은 그대로 그 계정의 동기화 결과로)
   mailConnect: (body) => connectMail(body, {
     path: join(HOME_DIR, "config.json"), current: () => cfg.connectors.mail,
