@@ -1451,6 +1451,7 @@ button.focus-tab.on { background: var(--surface); color: var(--fg); box-shadow: 
 @media (prefers-reduced-motion: reduce) { .focus-dot { animation: none; } .fw-bar { transition: none; } }
 /* ＋ 정해진 답 버튼 줄을 열었을 때 */
 #chat-canned-btn.on { color: var(--accent, #2f80ed); }
+#chat-canned-btn svg { display: block; pointer-events: none; }
 /* 캘린더 목록(calendar-editor.js): 줄마다 별칭 · 가린 주소 · ✎ / 켜짐 · 결과 · [빼기](묻는 칸은 줄 아래로) */
 .cal-editor { margin-top: 12px; }
 .cal-editor .cal-list li { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
