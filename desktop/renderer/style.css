@@ -171,6 +171,20 @@ body.char-hidden #stage { visibility: hidden; }
 .bubble.wide { max-width: 380px; }
 .bubble.wide .detail { display: block; -webkit-line-clamp: unset; font-size: 12.5px; line-height: 1.55; color: var(--bubble-fg); max-height: 18em; }
 .bubble.wide.overflow .detail { -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent); mask-image: linear-gradient(to bottom, #000 78%, transparent); }
+/* 채팅 답 말풍선: 접힌 글은 줄바꿈 그대로 최대 5줄(한 줄이 길게 감겨도), 펼치면 원문 마크다운을 그 자리에서 — 넘치면 안에서 스크롤 */
+.bubble.reply::before { float: left; margin-top: 6px; }
+.bubble.reply .text { display: block; white-space: pre-line; }
+.bubble.reply .text.md { white-space: normal; }
+.bubble.reply:not(.expanded) .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; }
+.bubble.reply.expanded { max-width: 380px; }
+.bubble.reply.expanded .text { max-height: 360px; overflow: auto; overscroll-behavior: contain; padding-right: 2px; user-select: text; -webkit-user-select: text; }
+.bubble.reply.expanded .md table { overflow-x: auto; }
+.bubble.reply.expanded .md th, .bubble.reply.expanded .md td { max-width: 16em; white-space: normal; overflow-wrap: break-word; }
+.bubble .md blockquote { margin: 3px 0; padding-left: 8px; border-left: 2px solid var(--bubble-border); color: var(--bubble-muted); }
+.bubble .md .callout { --co: var(--accent); margin: 4px 0; padding: 5px 9px; border-radius: 7px; border-left: 3px solid var(--co); background: color-mix(in srgb, var(--co) 10%, transparent); }
+.bubble .md .callout-tip { --co: var(--k-done); } .bubble .md .callout-important { --co: var(--k-proposal); }
+.bubble .md .callout-warning { --co: #b35400; } .bubble .md .callout-caution { --co: var(--k-error); }
+.bubble .md .callout-title { font-weight: 600; font-size: 0.92em; color: var(--co); margin-bottom: 2px; }
 .bubble.clickable { cursor: pointer; }
 .bubble.clickable:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--bubble-border)); }
 

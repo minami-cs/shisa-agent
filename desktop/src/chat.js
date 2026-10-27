@@ -358,17 +358,35 @@ export function stepLabel(step) {
   return `${svcName(svc)} · ${tool.replace(/_/g, ' ')}`;
 }
 
-// 말풍선용 짧은 답: 마크다운 기호 걷어내고 max 자에서 자른다
-export function summarizeReply(md, max = 120) {
-  const plain = String(md ?? '')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
-    .replace(/(\*\*|__|\*|_|~~|`)/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const chars = [...plain]; // 서로게이트 안 깨지게
-  if (chars.length <= max) return { text: plain, truncated: false };
-  return { text: `${chars.slice(0, max - 1).join('').trimEnd()}…`, truncated: true };
+// 말풍선용 짧은 답: 마크다운 기호 걷어내고 줄은 살려 앞 maxLines 줄만(더 있으면 마지막 줄 뒤에 …)
+// 빈 줄·표 구분선(| --- |)·가로줄·콜아웃 머리([!NOTE])는 건너뛰고, 표 행은 칸을 ' · ' 로 이어 한 줄로
+// 코드블록은 빼고 보이니 있었으면 잘린 것으로 친다(펼치기로 본다)
+export const REPLY_LINES = 5;
+export function summarizeReply(md, maxLines = REPLY_LINES) {
+  const lines = [];
+  const src = String(md ?? '');
+  const code = /```[\s\S]*?```/.test(src);
+  for (const raw of src.replace(/```[\s\S]*?```/g, '\n').split(/\r?\n/)) {
+    let l = raw.trim().replace(/^(?:>\s*)+/, '').replace(/^\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, '');
+    if (/^[\s|:=-]+$/.test(l) && /[-=]/.test(l)) continue; // 표 구분선·--- 가로줄·=== 제목 밑줄
+    if (/^([*_])(?:\s*\1){2,}$/.test(l)) continue; // *** · ___ 가로줄
+    l = l.replace(/^(?:#{1,6}|[-*+•]|\d+\.)\s+/, '').replace(/^\[[ xX]\]\s+/, '')
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+    if (l.startsWith('|')) l = l.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()).filter(Boolean).join(' · ');
+    l = l.replace(/(\*\*|__|\*|_|~~|`)/g, '').replace(/\s+/g, ' ').trim();
+    if (l) lines.push(l);
+  }
+  if (lines.length <= maxLines && !code) return { text: lines.join('\n'), truncated: false };
+  return { text: `${lines.slice(0, maxLines).join('\n')}…`, truncated: true };
+}
+
+// 채팅 답 말풍선: 접힌 글은 summarizeReply, 원문(full)은 「펼치기」로 그 자리에서 마크다운으로 그린다
+// 캐릭터 대화방(스레드)의 답이면 「대화에서 보기」가 그 대화를, 아니면 잘렸을 때 채팅 섹션을 연다
+export function replyBubble(r) {
+  const { text, truncated } = summarizeReply(r?.text);
+  const b = { id: `chat-${r?.chatId}`, text: text || t('overlay.empty_reply'), kind: r?.error ? 'error' : 'info', ttlMs: r?.stopped ? 5000 : 20000, reply: true, full: typeof r?.text === 'string' ? r.text : '', truncated };
+  if (r?.threadId) b.open = { section: 'chat', id: r.threadId };
+  else if (truncated) b.panelSection = 'chat';
+  return b;
 }
