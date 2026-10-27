@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { cleanChatModels, pickGroups, encodePick, decodePick, pickSendOpts, chatPickBody, pickTitle, answeredLabel } from '../src/chat-pick.js';
+import { cleanChatModels, pickGroups, encodePick, decodePick, pickSendOpts, chatPickBody, pickTitle, answeredLabel, pickBrand } from '../src/chat-pick.js';
 import { normThread, appendLocal, mergeMessages } from '../src/threads.js';
 import { sanitizeSettingsPatch } from '../src/settings.js';
 
@@ -93,4 +93,17 @@ test('배선: 입력줄 드롭다운·직접 입력 칸, preload chatModels·cha
   assert.match(panel, /useDefault: true/);
   assert.match(panel, /tr\('panel\.retry_default'\)/);
   assert.match(panel, /m\.by \? h\('span\.by'/);
+});
+
+test('모델 단추 로고: 고른 뇌의 공급자(Claude·OpenAI·그 밖), 기본이면 지금 뇌', () => {
+  const models = cleanChatModels(DATA);
+  assert.equal(pickBrand(models, ''), 'openai'); // 지금 뇌 codex
+  assert.equal(pickBrand(models, 'claude-code|'), 'claude');
+  assert.equal(pickBrand(models, 'anthropic|claude-opus-5-5'), 'claude');
+  assert.equal(pickBrand(models, 'openai|gpt-5'), 'openai');
+  assert.equal(pickBrand(models, 'codex|*'), 'openai');
+  assert.equal(pickBrand(models, 'gemini|'), 'chip');
+  assert.equal(pickBrand(null, ''), 'chip');
+  const html = readFileSync(new URL('../renderer/panel.html', import.meta.url), 'utf8');
+  assert.match(html, /<span id="chat-model-pick" class="model-pick" hidden>\s*<button id="chat-model-btn"[^>]*>\s*<\/button>\s*<select id="chat-model"/);
 });

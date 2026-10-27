@@ -78,6 +78,13 @@ export function pickTitle(models, current) {
   return cur.model ? `${name} · ${cur.model}` : tr('panel.pick_title_default', { brain: name });
 }
 
+// 모델 단추에 그릴 공급자 로고: 'claude' | 'openai' | 'chip'(그 밖·모름). 고른 게 없으면(기본) 지금 뇌 기준
+const BRANDS = { 'claude-code': 'claude', anthropic: 'claude', codex: 'openai', openai: 'openai' };
+export function pickBrand(models, current) {
+  const provider = decodePick(current)?.provider ?? (models?.active || models?.brains?.find((b) => b.active)?.provider || '');
+  return BRANDS[provider] ?? 'chip';
+}
+
 // 답 말풍선 아래 작은 글(데몬이 준 by.label)
 export function answeredLabel(by) {
   return by && typeof by.label === 'string' && by.label.trim() ? by.label.trim().slice(0, 80) : '';

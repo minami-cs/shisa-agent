@@ -400,6 +400,7 @@ export default {
     input_aria: '메시지',
     model_sel: 'AI·모델',
     model_sel_title: '이 대화에 쓸 AI·모델',
+    model_btn: '모델: {name}',
     model_custom: '모델 이름 직접 입력',
     send: '보내기',
     // 프로젝트 카드 날짜·기한·만들기 오류, 공통 조각(ui-kit)
@@ -923,6 +924,7 @@ export default {
     input_aria: 'メッセージ',
     model_sel: 'AI・モデル',
     model_sel_title: 'この会話で使う AI・モデル',
+    model_btn: 'モデル: {name}',
     model_custom: 'モデル名を直接入力',
     send: '送信',
     // 프로젝트 카드 날짜·기한·만들기 오류, 공통 조각(ui-kit)
