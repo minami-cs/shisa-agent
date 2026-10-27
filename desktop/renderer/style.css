@@ -271,6 +271,8 @@ body.char-hidden #stage { visibility: hidden; }
   background: none;
   padding: 0;
 }
+/* 링크가 둘 이상이면(펼치기 · 대화에서 보기 등) 첫 링크만 오른쪽으로 밀고 나머지는 붙여서 오른쪽에 나란히 */
+.bubble .link ~ .link { margin-left: 4px; }
 .bubble .note { font-size: 11.5px; color: var(--k-error); }
 
 @keyframes pop-in {
