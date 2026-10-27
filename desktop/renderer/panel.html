@@ -71,12 +71,18 @@
             <div id="chat-att-err" class="att-err" role="alert" hidden></div>
             <div id="chat-tray" class="att-tray" aria-label="붙인 파일" data-i18n-aria-label="panel.att_region" hidden></div>
             <div id="chat-compose">
-              <button id="chat-canned-btn" type="button" class="ghost att-pick" title="정해진 답 고르기: 오늘 할 일·응원·춤(AI 없이 바로)" aria-label="정해진 답 고르기" data-i18n-title="panel.canned_title" data-i18n-aria-label="panel.canned_label">＋</button>
-              <button id="chat-attach" type="button" class="ghost att-pick" title="파일 붙이기: 이미지·PDF·문서·아무 파일(끌어다 놓거나 ⌘V 로 붙여도 돼요)" aria-label="파일 붙이기" data-i18n-title="panel.attach_title" data-i18n-aria-label="panel.attach_label">📎</button>
-              <textarea id="chat-input" rows="1" placeholder="물어보세요. 예: 오늘 할 일 뭐 있어? (Shift+Enter 줄바꿈)" aria-label="메시지" data-i18n-placeholder="panel.input_first_ph" data-i18n-aria-label="panel.input_aria"></textarea>
-              <select id="chat-model" aria-label="AI·모델" title="이 대화에 쓸 AI·모델" data-i18n-aria-label="panel.model_sel" data-i18n-title="panel.model_sel_title" hidden></select>
-              <input id="chat-model-custom" type="text" aria-label="모델 이름 직접 입력" placeholder="모델 이름" data-i18n-aria-label="panel.model_custom" data-i18n-placeholder="panel.model_name" spellcheck="false" hidden>
-              <button id="chat-send" type="button" class="primary" data-i18n="panel.send">보내기</button>
+              <textarea id="chat-input" rows="3" placeholder="물어보세요. 예: 오늘 할 일 뭐 있어? (Shift+Enter 줄바꿈)" aria-label="메시지" data-i18n-placeholder="panel.input_first_ph" data-i18n-aria-label="panel.input_aria"></textarea>
+              <div class="compose-bar">
+                <button id="chat-canned-btn" type="button" class="ghost att-pick" title="정해진 답 고르기: 오늘 할 일·응원·춤(AI 없이 바로)" aria-label="정해진 답 고르기" data-i18n-title="panel.canned_title" data-i18n-aria-label="panel.canned_label">＋</button>
+                <button id="chat-attach" type="button" class="ghost att-pick" title="파일 붙이기: 이미지·PDF·문서·아무 파일(끌어다 놓거나 ⌘V 로 붙여도 돼요)" aria-label="파일 붙이기" data-i18n-title="panel.attach_title" data-i18n-aria-label="panel.attach_label">📎</button>
+                <span class="compose-gap"></span>
+                <span id="chat-model-pick" class="model-pick" hidden>
+                  <button id="chat-model-btn" type="button" class="ghost" tabindex="-1" title="AI·모델" aria-label="AI·모델" data-i18n-title="panel.model_sel" data-i18n-aria-label="panel.model_sel"></button>
+                  <select id="chat-model" aria-label="AI·모델" title="이 대화에 쓸 AI·모델" data-i18n-aria-label="panel.model_sel" data-i18n-title="panel.model_sel_title" hidden></select>
+                </span>
+                <input id="chat-model-custom" type="text" aria-label="모델 이름 직접 입력" placeholder="모델 이름" data-i18n-aria-label="panel.model_custom" data-i18n-placeholder="panel.model_name" spellcheck="false" hidden>
+                <button id="chat-send" type="button" class="primary" aria-label="보내기" data-i18n-aria-label="panel.send"></button>
+              </div>
             </div>
           </div>
         </section>
