@@ -97,9 +97,9 @@
       <h2 id="h-work" data-i18n="settings.h_work">근무 시간</h2>
       <p class="hint" data-i18n="settings.work_hint">정한 시각에 맞춰 <span class="who">시사</span>가 인사해요. 근무 요일에 하루 한 번씩만 떠요.</p>
       <div class="work-times">
-        <label class="work-time"><span data-i18n="settings.work_start">출근</span> <input id="work-start" type="time" required data-i18n-aria-label="settings.work_start_aria" aria-label="출근 시각"></label>
-        <label class="work-time"><span data-i18n="settings.work_lunch">점심</span> <input id="work-lunch" type="time" required data-i18n-aria-label="settings.work_lunch_aria" aria-label="점심 시각"></label>
-        <label class="work-time"><span data-i18n="settings.work_end">퇴근</span> <input id="work-end" type="time" required data-i18n-aria-label="settings.work_end_aria" aria-label="퇴근 시각"></label>
+        <label class="work-time"><span data-i18n="settings.work_start">출근</span> <span id="work-start" class="time-pick" role="group" data-required data-i18n-aria-label="settings.work_start_aria" aria-label="출근 시각"></span></label>
+        <label class="work-time"><span data-i18n="settings.work_lunch">점심</span> <span id="work-lunch" class="time-pick" role="group" data-required data-i18n-aria-label="settings.work_lunch_aria" aria-label="점심 시각"></span></label>
+        <label class="work-time"><span data-i18n="settings.work_end">퇴근</span> <span id="work-end" class="time-pick" role="group" data-required data-i18n-aria-label="settings.work_end_aria" aria-label="퇴근 시각"></span></label>
       </div>
       <div id="work-days" class="toggles work-days" role="group" data-i18n-aria-label="settings.work_days_aria" aria-label="근무 요일"></div>
       <div class="toggles work-alerts">
@@ -132,7 +132,7 @@
           <span class="weather-times-head" data-i18n="settings.weather_times_head">정한 시각에도</span>
           <span id="weather-times" class="weather-chips" role="list" data-i18n-aria-label="settings.weather_times_aria" aria-label="정한 날씨 알림 시각"></span>
           <span class="weather-add">
-            <input id="weather-time" type="time" data-i18n-aria-label="settings.weather_time_aria" aria-label="날씨 알림 시각">
+            <span id="weather-time" class="time-pick" role="group" data-i18n-aria-label="settings.weather_time_aria" aria-label="날씨 알림 시각"></span>
             <button id="weather-time-add" type="button" class="primary" data-i18n="settings.add">추가</button>
           </span>
         </div>

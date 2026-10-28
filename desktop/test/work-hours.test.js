@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { sanitizeSettingsPatch, workHoursView, workDaysNext, workTimeNext, WORK_DEFAULT, WORK_DAY_ORDER, DAY_LABEL } from '../src/settings.js';
 import { slotRows } from '../src/character-edit.js';
 import { CHARACTER_LINES } from '../src/character-lines.js';
+import { loadPage, fakeCy } from './fake-dom.js';
 
 test('근무 시간 저장 본문: HH:MM·요일·켜기만 넘기고 이상한 값은 거절', () => {
   assert.deepEqual(sanitizeSettingsPatch({ workStart: '09:30', lunchTime: '12:00', workEnd: '18:30' }), { workStart: '09:30', lunchTime: '12:00', workEnd: '18:30' });
@@ -29,7 +30,8 @@ test('근무 시간 화면 값: 기본 09:00·12:00·18:00·월~금·다 켬, �
 
 test('설정 창: 「근무 시간」 묶음에 시각 셋(time)·요일·알림 셋·퇴근 10분 전 설명, 해요체', () => {
   const html = fs.readFileSync(new URL('../renderer/settings.html', import.meta.url), 'utf8');
-  for (const id of ['work-start', 'work-lunch', 'work-end']) assert.match(html, new RegExp(`id="${id}" type="time"`));
+  for (const id of ['work-start', 'work-lunch', 'work-end']) assert.match(html, new RegExp(`id="${id}" class="time-pick" role="group" data-required`));
+  assert.doesNotMatch(html, /type="time"/);
   for (const id of ['work-days', 'start-on', 'lunch-on', 'leave-on', 'work-err']) assert.match(html, new RegExp(`id="${id}"`));
   const sec = html.slice(html.indexOf('h-work'), html.indexOf('</section>', html.indexOf('h-work')));
   assert.match(sec, /근무 시간/);
@@ -43,4 +45,62 @@ test('퇴근 인사 대사: 기본 캐릭터마다 local.leave, 자리표시는 
     for (const m of c.local.leave.matchAll(/\{(\w+)\}/g)) assert.equal(m[1], 'mins', id);
   }
   assert.match(slotRows().find((r) => r.slot === 'plan').hint, /퇴근 10분 전/);
+});
+
+test('설정 창 시각 칸: 오전/오후(오전이 늘 위)·시·분 세 칸, 값은 HH:MM(24시간)으로 읽고 쓰고, 바꾸면 그 시각으로 저장', async () => {
+  const saved = [];
+  const data = { workStart: '09:05', lunchTime: '12:00', workEnd: '18:30', weather: { place: { name: '서울', latitude: 37.5, longitude: 127, timezone: 'Asia/Seoul' }, times: [] } };
+  const cur = structuredClone(data);
+  const cy = fakeCy({
+    getSettings: { ok: true, data },
+    saveSettings: (patch) => { saved.push(patch); Object.assign(cur, patch); return Promise.resolve({ ok: true, data: { settings: structuredClone(cur) } }); },
+  });
+  const page = await loadPage('settings', { cy });
+  page.window._ev = new Map();
+  await page.settle();
+  const $ = (id) => page.document.getElementById(id);
+  for (const id of ['work-start', 'work-lunch', 'work-end', 'weather-time']) {
+    const sels = $(id).querySelectorAll('select');
+    assert.deepEqual(sels.map((s) => s.className), ['tp-ap', 'tp-h', 'tp-m'], id);
+    assert.deepEqual(sels[0].options.filter((o) => o.value).map((o) => o.textContent), ['오전', '오후'], id);
+    assert.ok(sels.every((s) => s.getAttribute('aria-label')), id);
+  }
+  assert.equal($('work-start').value, '09:05');
+  assert.equal($('work-lunch').value, '12:00');
+  assert.equal($('work-end').value, '18:30');
+  assert.equal($('work-end').querySelector('.tp-ap').value, 'pm');
+  assert.equal($('work-end').querySelector('.tp-h').value, '6');
+  // 필수 칸은 빈 칸(--)이 없고, 날씨 알림 시각은 다 고르기 전엔 '' · 0시는 오전 12시
+  assert.equal($('work-start').querySelector('.tp-ap').options.length, 2);
+  assert.equal($('weather-time').value, '');
+  $('weather-time').value = '00:15';
+  assert.equal($('weather-time').querySelector('.tp-ap').value, 'am');
+  assert.equal($('weather-time').querySelector('.tp-h').options.find((o) => o.selected).textContent, '12');
+  assert.equal($('weather-time').value, '00:15');
+  $('weather-time').value = '';
+  assert.equal($('weather-time').value, '');
+  // 오전 → 오후로 바꾸면 21:05 로 저장(칸 안쪽 change 가 자리 change 로)
+  const ap = $('work-start').querySelector('.tp-ap');
+  ap.value = 'pm';
+  ap.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  await page.settle();
+  assert.equal($('work-start').value, '21:05');
+  assert.match($('work-err').textContent, /퇴근 시각보다 앞/);
+  ap.value = 'am';
+  $('work-start').querySelector('.tp-h').value = '8';
+  ap.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  await page.settle();
+  assert.deepEqual(saved.at(-1), { workStart: '08:05' });
+  // 저장 응답으로 다시 그릴 때: 포커스가 안에 있는 칸은 그대로, 나머지는 저장된 값으로
+  const lm = $('work-lunch').querySelector('.tp-m');
+  lm.focus();
+  lm.value = '30';
+  $('work-start').querySelector('.tp-h').value = '7';
+  const em = $('work-end').querySelector('.tp-m');
+  em.value = '45';
+  em.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  await page.settle();
+  assert.deepEqual(saved.at(-1), { workEnd: '18:45' });
+  assert.equal($('work-lunch').value, '12:30');
+  assert.equal($('work-start').value, '08:05');
 });
