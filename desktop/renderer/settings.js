@@ -16,6 +16,7 @@ import { CHARACTERS, CHARACTER_IDS, characterAssets, characterName, okCharacterI
 import { applyCharacters, effectiveLines, defaultsOf, staticCharacters } from '../src/character-registry.js';
 import { editorSections, flattenLines, unflattenLines, fieldText, fieldProblem, linesFromTexts, diffLines, slotRows, okMediaName, previewKind, missingRequired, sourceOptions, ACCEPT, MULTI_HINT, sayPlaceholder, sayTitle, editorSig, editorRefresh } from '../src/character-edit.js';
 import { who, whoId, setWho, onWho } from './who.js';
+import { mountTimePick } from './time-pick.js';
 // 안내 글 속 이름(<span class="who">)도 캐릭터 이름으로
 onWho(() => { for (const n of document.querySelectorAll('.who')) n.textContent = who(); });
 import { brainRows, brainDisconnectCopy, connectorAction, capOfRow, connectorDisconnectCopy, disconnectControl } from '../src/disconnect.js';
@@ -982,8 +983,8 @@ function renderCalAlert() {
 function renderWork() {
   if (!settings) return;
   const v = workHoursView(settings);
-  // 입력 중인 칸은 그대로 둔다(저장 응답이 와도 커서가 튀지 않게)
-  for (const [id, k] of [['work-start', 'workStart'], ['work-lunch', 'lunchTime'], ['work-end', 'workEnd']]) if (document.activeElement !== $(id)) $(id).value = v[k];
+  // 입력 중인 칸은 그대로 둔다(저장 응답이 와도 커서가 튀지 않게) — 시각 칸은 오전/오후·시·분 셋이라 그 안에 포커스가 있는지 본다
+  for (const [id, k] of [['work-start', 'workStart'], ['work-lunch', 'lunchTime'], ['work-end', 'workEnd']]) if (!$(id).contains(document.activeElement)) $(id).value = v[k];
   $('start-on').checked = v.startAlert;
   $('lunch-on').checked = v.lunchAlert;
   $('leave-on').checked = v.leaveAlert;
@@ -1009,10 +1010,12 @@ function renderWork() {
     box.append(lab);
   }
 }
+// 시각 칸(출근·점심·퇴근·날씨 알림): 크롬 기본 시간 칸 대신 오전/오후(오전이 늘 위)·시·분
+for (const n of document.querySelectorAll('.time-pick')) mountTimePick(n);
 for (const [id, k] of [['work-start', 'workStart'], ['work-lunch', 'lunchTime'], ['work-end', 'workEnd']]) {
-  $(id).addEventListener('change', async (e) => {
+  $(id).addEventListener('change', async () => {
     $('work-err').textContent = '';
-    const r = workTimeNext(settings, k, e.target.value);
+    const r = workTimeNext(settings, k, $(id).value);
     if (r.error) { $('work-err').textContent = r.error; return; }
     if (await save(r.patch)) { renderWork(); renderWeather(); }
   });
