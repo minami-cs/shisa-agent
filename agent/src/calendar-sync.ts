@@ -36,10 +36,10 @@ export type CalEvent = {
   attendees?: number; // 나 말고 참석자 수(응답에 attendees 가 있을 때만)
   description?: string; attendeeNames?: string[]; // 설명·참석자 이름(일정에서 프로젝트 만들기 — manual-projects.ts)
   calendar?: string; // 어느 캘린더(별칭, 없으면 ICS 의 X-WR-CALNAME, 그것도 없으면 「캘린더 N」)
-  tag?: string;      // 알림·AI 맥락에 붙일 캘린더 이름(별칭이 있거나 캘린더가 여럿일 때만. 하나뿐이면 매번 붙이지 않는다)
+  tag?: string;      // 알림·AI 맥락에 붙일 캘린더 이름(켜진 캘린더가 여럿일 때만. 하나뿐이면 별칭이 있어도 붙이지 않는다)
   calId?: string;    // ICS 캘린더 id(connectors.ts calendarId). 캘린더마다 일정을 바꾸고 뺄 때 쓴다
 };
-// response: 내 응답(accepted·notresponded·organizer…), location: 회의실·장소, calendar: 어느 캘린더(별칭), calId: 그 캘린더 id
+// response: 내 응답(accepted·notresponded·organizer…), location: 회의실·장소, calendar: 어느 캘린더(별칭, 캘린더가 여럿일 때만 — CalEvent.tag), calId: 그 캘린더 id
 export type Meeting = { id: string; subject: string; start: string; end: string; link?: string; webLink?: string; response?: string; location?: string; calendar?: string; calId?: string };
 
 // ── 파싱 ─────────────────────────────────────────────────────
@@ -181,9 +181,10 @@ export function onlineLabel(link?: string): string | undefined {
 }
 
 // 말풍선 한 줄: "일정 10분 전이에요! 〈제목〉 13:00 · 🗓 회사 · 📍 회의실 · 온라인(Teams)". 캘린더 별칭·장소·링크가 없으면 그 부분만 뺀다(문구는 설정 창 meeting_alert).
+// 캘린더 별칭은 캘린더가 여럿일 때만 오고(CalEvent.tag), 어느 캘린더인지 알아보게 자르지 않는다(길면 말풍선에서 줄바꿈)
 // mins: 몇 분 전({mins}). 사용자가 고친 문구에 {mins} 가 없으면 그 글 그대로
 export function alertVars(m: Meeting, mins = 10): { mins: number; title: string; time: string; where: string } {
-  const where = [m.calendar ? `🗓 ${clip(m.calendar, 20)}` : "", m.location ? `📍 ${clip(m.location, LOCATION_MAX)}` : "", onlineLabel(m.link) ?? ""].filter(Boolean).join(" · ");
+  const where = [m.calendar ? `🗓 ${m.calendar}` : "", m.location ? `📍 ${clip(m.location, LOCATION_MAX)}` : "", onlineLabel(m.link) ?? ""].filter(Boolean).join(" · ");
   return { mins, title: clip(m.subject, 40), time: kstHHMM(m.start), where: where ? ` · ${where}` : "" };
 }
 export function alertText(m: Meeting, mins = 10): string {
@@ -270,7 +271,7 @@ export function icsSource(list: IcsCalendar[], opts: { timeZone: string; email?:
         const g = isGoogle ? await (opts.google ? google(opts.google, w, { timeZone: opts.timeZone }) : Promise.reject(new GoogleCalError("client", "no client"))) : null;
         const text = g ? "" : await read(c, w);
         const name = c.name || (g ? g.name : calendarName(text)) || fallback;
-        const got = (g ? g.events : eventsInWindow(text, Date.parse(w.from), Date.parse(w.to), opts)).map((e) => ({ ...e, calId: c.id, ...(name ? { calendar: name } : {}), ...(name && (c.name || cals.length > 1) ? { tag: name } : {}) }));
+        const got = (g ? g.events : eventsInWindow(text, Date.parse(w.from), Date.parse(w.to), opts)).map((e) => ({ ...e, calId: c.id, ...(name ? { calendar: name } : {}), ...(name && on.length > 1 ? { tag: name } : {}) }));
         events.push(...got);
         parts.push({ id: c.id, name: name || t("status.cal_default"), ok: true, events: got.length });
       }
@@ -393,6 +394,8 @@ export function mcpEventsToCal(list: unknown): CalEvent[] {
     if (typeof e.calendar === "string" && e.calendar.trim()) ev.calendar = e.calendar.trim();
     out.push(ev);
   }
+  // 알림 별칭(tag)은 받은 일정의 캘린더 이름이 둘 이상일 때만(하나뿐이면 매번 붙이지 않는다)
+  if (new Set(out.map((e) => e.calendar).filter(Boolean)).size > 1) for (const e of out) if (e.calendar) e.tag = e.calendar;
   return out;
 }
 

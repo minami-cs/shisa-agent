@@ -145,6 +145,7 @@ test("캘린더마다 가져오기: 별칭이 일정·알림·AI 맥락·연결 
   await sync.sync();
   assert.deepEqual(fetched, [A], "꺼 둔 캘린더는 읽지 않는다");
   assert.deepEqual(sync.upcoming(NOW).map((m) => m.subject), ["스프린트 회의"]);
+  assert.deepEqual(sync.upcoming(NOW).map((m) => m.calendar), [undefined], "켜진 캘린더가 하나뿐이면 알림 별칭을 붙이지 않는다(꺼 둔 건 세지 않는다)");
   assert.equal(calendarPartsLine(sync.state()), "회사: 일정 1개 / 개인: 꺼 둠");
   assert.match(new Connections(cfg, { now: () => NOW, env: {}, hasServer: () => false, calendar: () => sync.state() }).rows().find((x: ConnRow) => x.id === "connector:calendar")!.detail ?? "", /1개 꺼 둠.*개인: 꺼 둠/);
   // 「일정에서 가져오기」도 켜 둔 캘린더만, 별칭으로

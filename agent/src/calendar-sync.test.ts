@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Store } from "./store.ts";
 import type { Config } from "./config.ts";
 import {
-  CalendarSync, alertDetail, alertKey, alertText, extractLocation, icsSource, onlineLabel, kstHHMM, parseCalendarView, planAlerts, skipReason, toIso, toMeetings,
+  CalendarSync, alertDetail, alertKey, alertText, alertVars, extractLocation, icsSource, mcpEventsToCal, onlineLabel, kstHHMM, parseCalendarView, planAlerts, skipReason, toIso, toMeetings,
   type CalEvent, type Meeting,
 } from "./calendar-sync.ts";
 
@@ -373,4 +373,34 @@ test("여러 캘린더(ICS 여러 개)에 같은 일정이 겹쳐도(같은 UID�
     await new Promise((res) => setImmediate(res));
   }
   assert.deepEqual(fired, ["주간 회의@2026-10-08T04:00:00.000Z", "데일리@2026-10-08T04:30:00.000Z"]);
+});
+
+test("알림 별칭: 캘린더가 하나면 별칭을 붙여도 안 붙이고, 여럿이면 긴 별칭도 자르지 않는다", async () => {
+  const ics = (uid: string, summary: string) => ["BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT", `UID:${uid}`, "DTSTART:20261008T040000Z", "DTEND:20261008T043000Z", `SUMMARY:${summary}`,
+    "ORGANIZER:mailto:boss@example.com", "ATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const W = { from: "2026-10-08T00:00:00+09:00", to: "2026-10-10T00:00:00+09:00" };
+  const A = "https://example.com/a.ics", B = "https://example.com/b.ics";
+  const feeds: Record<string, string> = { [A]: ics("a1", "주간 회의"), [B]: ics("b1", "병원") };
+  const email = "minajung@sweetspot.co.kr";
+  // (a) 캘린더 하나 + 별칭: 일정의 calendar 는 남고, 알림 별칭(tag)·Meeting.calendar 는 없다
+  const one = await icsSource([{ name: email, url: A }], { timeZone: "Asia/Seoul" }, async (u) => feeds[u])({} as never, W);
+  assert.deepEqual(one.events.map((e) => [e.calendar, e.tag]), [[email, undefined]]);
+  const [m1] = toMeetings(one.events);
+  assert.equal(m1.calendar, undefined);
+  assert.equal(alertVars(m1).where, "");
+  // (b) 캘린더 둘: 별칭 전체가 잘리지 않고 where 에
+  const two = await icsSource([{ name: email, url: A }, { name: "개인", url: B }], { timeZone: "Asia/Seoul" }, async (u) => feeds[u])({} as never, W);
+  const ms = toMeetings(two.events);
+  assert.deepEqual(ms.map((m) => m.calendar), [email, "개인"]);
+  assert.equal(alertVars(ms[0]).where, ` · 🗓 ${email}`);
+  assert.ok(!alertText(ms[0]).includes("…"));
+});
+
+test("mcpEventsToCal: 받은 일정의 캘린더 이름이 하나뿐이면 별칭 없음, 여럿이면 별칭", () => {
+  const ev = (id: string, calendar?: string) => ({ id, subject: id, start: "2026-10-08T13:00:00+09:00", end: "2026-10-08T14:00:00+09:00", allDay: false, cancelled: false, declined: false, online: false, attendees: 2, ...(calendar ? { calendar } : {}) });
+  const single = mcpEventsToCal([ev("a", "minajung@sweetspot.co.kr"), ev("b", "minajung@sweetspot.co.kr"), ev("c")]);
+  assert.deepEqual(single.map((e) => [e.calendar, e.tag]), [["minajung@sweetspot.co.kr", undefined], ["minajung@sweetspot.co.kr", undefined], [undefined, undefined]]);
+  assert.deepEqual(toMeetings(single).map((m) => m.calendar), [undefined, undefined, undefined]);
+  const multi = mcpEventsToCal([ev("a", "회사"), ev("b", "개인"), ev("c")]);
+  assert.deepEqual(toMeetings(multi).map((m) => m.calendar), ["회사", "개인", undefined]);
 });
