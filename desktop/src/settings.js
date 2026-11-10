@@ -33,7 +33,7 @@ export function autoMergeNext(list, slug, add) {
 export function sanitizeSettingsPatch(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
   const out = {};
-  for (const k of Object.keys(p)) if (k !== 'models' && k !== 'brainModels' && k !== 'briefing' && k !== 'phrases' && k !== 'autoMerge' && k !== 'todayReminder' && k !== 'readSessions' && k !== 'calendarAlert' && k !== 'lunchAlert' && !WORK_KEYS.includes(k) && k !== 'weather' && k !== 'character' && k !== 'language') return null;
+  for (const k of Object.keys(p)) if (k !== 'models' && k !== 'brainModels' && k !== 'coding' && k !== 'briefing' && k !== 'phrases' && k !== 'autoMerge' && k !== 'todayReminder' && k !== 'readSessions' && k !== 'calendarAlert' && k !== 'lunchAlert' && !WORK_KEYS.includes(k) && k !== 'weather' && k !== 'character' && k !== 'language') return null;
   // 언어(src/lang.js · 데몬 lang.ts)
   if (p.language !== undefined) {
     if (!isLang(p.language)) return null;
@@ -59,14 +59,21 @@ export function sanitizeSettingsPatch(p) {
     if (!Object.keys(m).length) return null;
     out.models = m;
   }
-  // Claude 가 아닌 뇌의 세부 모델: { provider, models: { quick|general|light: 이름 | null(기본) } } — 그 뇌에 맞는지는 데몬이
+  // 코드 작업 AI는 대화 AI와 따로 저장한다. 실행 가능 여부는 데몬이 판정한다.
+  if (p.coding !== undefined) {
+    const c = p.coding;
+    if (!c || typeof c !== 'object' || Array.isArray(c) || Object.keys(c).some((k) => k !== 'provider')) return null;
+    if (!['claude-code', 'codex'].includes(c.provider)) return null;
+    out.coding = { provider: c.provider };
+  }
+  // Claude 가 아닌 뇌의 세부 모델. code는 Codex 코드 작업 모델만 — 그 뇌에 맞는지는 데몬이
   if (p.brainModels !== undefined) {
     const b = p.brainModels;
     if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'provider' && k !== 'models')) return null;
     if (!['codex', 'gemini', 'openai', 'genspark'].includes(b.provider) || !b.models || typeof b.models !== 'object' || Array.isArray(b.models)) return null;
     const m = {};
     for (const [k, v] of Object.entries(b.models)) {
-      if (!['quick', 'general', 'light'].includes(k) || !(v === null || okModel(v))) return null;
+      if ((!['quick', 'general', 'light'].includes(k) && !(k === 'code' && b.provider === 'codex')) || !(v === null || okModel(v))) return null;
       m[k] = v;
     }
     if (!Object.keys(m).length) return null;
