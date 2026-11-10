@@ -127,8 +127,12 @@ test('defaultLoginPref: 정한 값은 그대로, 없으면 마법사를 마친 �
   assert.equal(defaultLoginPref(true, false), true);
 });
 
-test('Finder에서 띄운 데몬도 ChatGPT 내장 Codex를 실행할 수 있다', () => {
+test('Finder에서 띄운 데몬도 Codex·ChatGPT 내장 CLI를 실행할 수 있다', () => {
   const env = daemonEnv({ PATH: '/usr/bin:/bin' }, { home: '/Users/me', platform: 'darwin' });
+  assert.ok(env.PATH.split(':').includes('/Applications/Codex.app/Contents/Resources'));
+  assert.ok(env.PATH.split(':').includes('/Users/me/Applications/Codex.app/Contents/Resources'));
   assert.ok(env.PATH.split(':').includes('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS'));
   assert.ok(env.PATH.split(':').includes('/Users/me/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS'));
+  const linux = daemonEnv({}, { home: '/Users/me', platform: 'linux' });
+  assert.ok(!linux.PATH.includes('.app/'));
 });

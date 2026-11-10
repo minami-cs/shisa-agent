@@ -42,13 +42,19 @@ test("코드 작업 AI: 고른 것이 이기고, 안 골랐으면 Claude Code �
   assert.equal(codingProvider(cfg, { claude: true, codex: true }), "claude-code", "대화 AI 와 따로");
 });
 
-test("Codex 준비: codex 명령 + 로그인 파일(auth.json). keyring 에만 저장했으면 준비 안 됨", () => {
+test("Codex 준비: codex 명령 + 사용 가능한 로그인 파일(auth.json). keyring 에만 저장했으면 준비 안 됨", () => {
   const ok = fakeCodex();
   const keyring = fakeCodex({ auth: false });
   try {
     assert.equal(codexCodingReady(ok.env), true);
     assert.equal(codexCodingReady(keyring.env), false);
     assert.equal(codexCodingReady({ PATH: "", CODEX_HOME: ok.env.CODEX_HOME }), false);
+    for (const raw of ['', '{', '{}', '{"tokens":{"access_token":" "}}']) {
+      writeFileSync(join(ok.env.CODEX_HOME, 'auth.json'), raw);
+      assert.equal(codexCodingReady(ok.env), false);
+    }
+    writeFileSync(join(ok.env.CODEX_HOME, 'auth.json'), '{"OPENAI_API_KEY":"test-key"}');
+    assert.equal(codexCodingReady(ok.env), true);
   } finally { ok.done(); keyring.done(); }
 });
 
@@ -121,10 +127,12 @@ test("GET /status: Claude Code 가 없고 Codex 만 있으면 코드 작업 버�
   try {
     const base = { brain: { provider: "codex" as const }, user: {}, onboarded: true } as any;
     const only = statusOf(base, { env: f.env, claude: () => false });
+    assert.equal(only.coder.codex, true);
     assert.deepEqual([only.features.code, only.features.coder], [true, "codex"]);
     const pinned = statusOf({ ...base, coding: { provider: "claude-code" } }, { env: f.env, claude: () => false });
     assert.deepEqual([pinned.features.code, pinned.features.coder], [false, "claude-code"], "Claude Code 로 골라 뒀는데 없으면 숨김");
     const noAuth = statusOf(base, { env: keyring.env, claude: () => false });
+    assert.equal(noAuth.coder.codex, false, "코드 연결 상태도 로그인 파일을 확인한다");
     assert.equal(noAuth.features.code, false, "Codex 로그인 파일이 없으면 실패할 버튼을 보이지 않는다");
     const unknown = statusOf(base, { env: f.env, claude: () => undefined });
     assert.deepEqual([unknown.features.code, unknown.features.coder], [null, "claude-code"], "확인 전엔 막지 않는다");

@@ -247,7 +247,7 @@ test("GET /status: 뒤에서 하는 정리는 Codex 로 · MCP 커넥터는 Clau
   const env = { PATH: bin, CODEX_HOME: join(bin, "no-codex-home") }; // 로그인 파일 없음(keyring 저장과 같다)
   const cx = statusOf(withBrain("codex", conns), { env, hasServer, claude: () => false });
   assert.deepEqual(cx.features.background, { by: "codex", ready: true, detail: "Codex 로 돌아요" });
-  assert.equal(cx.coder.codex, true);
+  assert.equal(cx.coder.codex, false, "코드 작업 연결 상태는 명령뿐 아니라 사용 가능한 로그인 파일도 필요하다");
   assert.equal(cx.features.mcp, false);
   assert.equal(cx.features.code, false, "Codex 로그인 파일이 없으면 코드 작업은 못 맡긴다");
   assert.equal(cx.features.coder, "claude-code");

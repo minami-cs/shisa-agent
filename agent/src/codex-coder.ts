@@ -47,8 +47,16 @@ onLanguage(() => { CODEX_AUTH_MISSING = t('status.codex_auth_missing'); CODEX_SA
 export function codexHomeOf(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   return env.CODEX_HOME?.trim() || join(home, '.codex');
 }
-// 코드 작업에 쓸 Codex 로그인 파일이 있나(keyring 에만 저장한 사람은 없다)
-export const codexAuthReady = (env: NodeJS.ProcessEnv = process.env, exists: (p: string) => boolean = existsSync) => exists(join(codexHomeOf(env), 'auth.json'));
+// 코드 작업 임시 홈으로 복사할 수 있는 인증인가(keyring 전용 저장은 지원하지 않는다).
+export function codexAuthLoggedIn(raw: string): boolean {
+  try {
+    const auth = JSON.parse(raw);
+    return [auth?.tokens?.access_token, auth?.OPENAI_API_KEY].some((value) => typeof value === 'string' && value.trim().length > 0);
+  } catch { return false; }
+}
+export function codexAuthReady(env: NodeJS.ProcessEnv = process.env, read: (p: string) => string = (p) => readFileSync(p, 'utf8')): boolean {
+  try { return codexAuthLoggedIn(read(join(codexHomeOf(env), 'auth.json'))); } catch { return false; }
+}
 
 // 샌드박스: 작업 폴더만 쓰기, 네트워크 끔, 임시 폴더도 뺀다(임시 CODEX_HOME 이 TMPDIR 아래에 있다)
 export function codexSandboxPolicy(cwd: string) {
@@ -137,6 +145,7 @@ function acquireHome(source: string): SharedHome {
   const authFile = join(source, 'auth.json');
   let now: string;
   try { now = readFileSync(authFile, 'utf8'); } catch { throw new Error(CODEX_AUTH_MISSING); }
+  if (!codexAuthLoggedIn(now)) throw new Error(CODEX_AUTH_MISSING);
   const live = homes.get(source);
   if (live) {
     // 사용자가 그 사이 다시 로그인했고 임시 홈은 아직 손대지 않았으면 새 인증으로 바꿔 둔다
