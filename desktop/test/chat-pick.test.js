@@ -71,10 +71,11 @@ test('스레드 기억·답 표시: 대화의 pick, 답의 by, 실패 줄의 ret
   assert.deepEqual(err[0].retry, { n: 3, text: '안녕' });
 });
 
-test('설정 창 저장 본문: brainModels 는 Claude 가 아닌 뇌·채팅 역할만(null = 기본)', () => {
+test('설정 창 저장 본문: brainModels 는 Claude 가 아닌 뇌·채팅 역할과 Codex 코드 작업(null = 기본)', () => {
   assert.deepEqual(sanitizeSettingsPatch({ brainModels: { provider: 'codex', models: { general: 'gpt-5.6-terra', light: null } } }), { brainModels: { provider: 'codex', models: { general: 'gpt-5.6-terra', light: null } } });
   assert.equal(sanitizeSettingsPatch({ brainModels: { provider: 'claude-code', models: { general: 'x' } } }), null);
-  assert.equal(sanitizeSettingsPatch({ brainModels: { provider: 'codex', models: { code: 'x' } } }), null);
+  assert.deepEqual(sanitizeSettingsPatch({ brainModels: { provider: 'codex', models: { code: 'x' } } }), { brainModels: { provider: 'codex', models: { code: 'x' } } });
+  assert.equal(sanitizeSettingsPatch({ brainModels: { provider: 'gemini', models: { code: 'x' } } }), null);
   assert.equal(sanitizeSettingsPatch({ brainModels: { provider: 'codex', models: {} } }), null);
 });
 

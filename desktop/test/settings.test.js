@@ -18,6 +18,26 @@ test('sanitizeSettingsPatch: 모델 역할·출처만, 이상하면 null', () =>
   }
 });
 
+test('코드 작업 AI와 Codex 세부 모델: 선택·기본값 복원은 통과하고 잘못된 값은 거른다', () => {
+  for (const provider of ['claude-code', 'codex']) {
+    const patch = { coding: { provider } };
+    assert.deepEqual(sanitizeSettingsPatch(patch), patch);
+  }
+  for (const code of ['gpt-5.4', null]) {
+    const patch = { coding: { provider: 'codex' }, brainModels: { provider: 'codex', models: { code } } };
+    assert.deepEqual(sanitizeSettingsPatch(patch), patch);
+  }
+  for (const coding of [null, [], {}, 'codex', { provider: 'openai' }, { provider: 1 }, { provider: 'codex', model: 'gpt-5.4' }]) {
+    assert.equal(sanitizeSettingsPatch({ coding }), null, JSON.stringify(coding));
+  }
+  for (const provider of ['gemini', 'openai', 'genspark']) {
+    assert.equal(sanitizeSettingsPatch({ brainModels: { provider, models: { code: 'gpt-5.4' } } }), null, provider);
+  }
+  for (const code of ['a b', 1, {}]) {
+    assert.equal(sanitizeSettingsPatch({ brainModels: { provider: 'codex', models: { code } } }), null, JSON.stringify(code));
+  }
+});
+
 test('자동 머지 레포: 저장 본문(owner/name 목록만) · 입력 글 다듬기 · 넣기/빼기', () => {
   assert.deepEqual(sanitizeSettingsPatch({ autoMerge: ['example/speaker', 'example/speaker'] }), { autoMerge: ['example/speaker'] });
   assert.deepEqual(sanitizeSettingsPatch({ autoMerge: [] }), { autoMerge: [] });
@@ -106,10 +126,20 @@ test('설정 창 IPC: 이 창에서 온 것만, 저장 본문은 걸러서 PUT, 
   await handlers['settings-get'](mine);
   assert.deepEqual(await handlers['settings-get'](other), { ok: false, status: 400, error: 'bad args', data: { error: '앱이 이 요청을 받지 않았어요(보낸 값이 맞지 않아요)' } });
   await handlers['settings-put'](mine, { models: { quick: 'claude-haiku-5-5' } });
+  await handlers['settings-put'](mine, { coding: { provider: 'codex' } });
+  await handlers['settings-put'](mine, { brainModels: { provider: 'codex', models: { code: 'gpt-5.4' } } });
+  await handlers['settings-put'](mine, { brainModels: { provider: 'codex', models: { code: null } } });
   assert.deepEqual(await handlers['settings-put'](mine, { port: 1 }), { ok: false, status: 400, error: 'bad args', data: { error: '앱이 이 요청을 받지 않았어요(보낸 값이 맞지 않아요)' } });
   await handlers['connections-check'](mine, 'services');
   assert.deepEqual(await handlers['connections-check'](mine, '../x'), { ok: false, status: 400, error: 'bad args', data: { error: '앱이 이 요청을 받지 않았어요(보낸 값이 맞지 않아요)' } });
-  assert.deepEqual(requests.map((r) => r.slice(0, 3)), [['GET', '/settings'], ['PUT', '/settings', { models: { quick: 'claude-haiku-5-5' } }], ['POST', '/connections/check', { id: 'services' }]]);
+  assert.deepEqual(requests.map((r) => r.slice(0, 3)), [
+    ['GET', '/settings'],
+    ['PUT', '/settings', { models: { quick: 'claude-haiku-5-5' } }],
+    ['PUT', '/settings', { coding: { provider: 'codex' } }],
+    ['PUT', '/settings', { brainModels: { provider: 'codex', models: { code: 'gpt-5.4' } } }],
+    ['PUT', '/settings', { brainModels: { provider: 'codex', models: { code: null } } }],
+    ['POST', '/connections/check', { id: 'services' }],
+  ]);
   listeners['settings-open-panel'](mine, 'setup');
   listeners['settings-open-panel'](mine, 'https://evil.example/');
   listeners['settings-open-panel'](other, 'models');

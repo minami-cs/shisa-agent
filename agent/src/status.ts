@@ -81,7 +81,7 @@ export function statusOf(cfg: Pick<Config, "brain" | "connectors" | "user" | "on
   return {
     brain: { provider, label, ready, local, detail },
     chat: local ? false : ready,
-    coder: { claude: claude ?? null, codex },
+    coder: { claude: claude ?? null, codex: avail.codex },
     features: { background, mcp, code: codingReady(cfg, avail), coder: codingProvider(cfg, avail) },
     connectors: CAPABILITIES.map((cap) => {
       const x = st.find((s) => s.cap === cap)!;

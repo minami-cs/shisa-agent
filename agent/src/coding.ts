@@ -2,7 +2,7 @@
 //   - 고른 것: config.json coding.provider. 안 골랐으면 Claude Code, 다만 Claude Code 가 없고(로그인 안 됨) Codex 가 준비됐으면 Codex
 //   - 모델은 한 곳: Claude Code 면 models.code, Codex 면 brainModels.codex.code(설정 창 「세부 모델」의 코드 작업 칸). 비면 그 실행기 기본
 //   - 준비: Claude Code 는 로그인(Connections.claudeLoggedIn — main 이 setClaudeProbe 로 알려 준다, 모르면 null),
-//     Codex 는 codex 명령 + 로그인 파일(auth.json; keyring 에만 저장했으면 준비 안 됨)
+//     Codex 는 codex 명령 + 사용 가능한 로그인 파일(auth.json; keyring 에만 저장했으면 준비 안 됨)
 import type { CodingProvider, Config } from "./config.ts";
 import { modelFits } from "./models.ts";
 import { commandOnPath } from "./providers.ts";

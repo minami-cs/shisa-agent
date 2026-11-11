@@ -7,12 +7,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   approveCodexRequest, codexCommandText, codexSandboxPolicy, sandboxIsSafe, createCodexQuery, writeBackAuth, cleanupStaleCodexHomes,
-  activeCodexHomes, CODEX_AUTH_MISSING, CODEX_SANDBOX_UNSURE,
+  activeCodexHomes, codexAuthLoggedIn, codexAuthReady, CODEX_AUTH_MISSING, CODEX_SANDBOX_UNSURE,
 } from './codex-coder.ts';
 import { noShipHook } from './fixer.ts';
 
 const guard = (cwd: string) => ({ cwd, hooks: { PreToolUse: [{ hooks: [noShipHook] }] } });
 const cmdReq = (cwd: string, command: unknown, extra: Record<string, unknown> = {}) => ({ kind: 'command', threadId: 't', turnId: 'u', itemId: 'a', startedAtMs: 1, cwd, command, ...extra });
+
+test('Codex 인증: 로그인 파일의 JSON과 토큰·API 키를 검사하며 읽기 실패는 준비 안 됨', () => {
+  for (const auth of [{ tokens: { access_token: 'test-token' } }, { OPENAI_API_KEY: 'test-key' }]) assert.equal(codexAuthLoggedIn(JSON.stringify(auth)), true);
+  for (const raw of ['{', '{}', 'null', '[]', '{"tokens":{"access_token":" "}}', '{"OPENAI_API_KEY":false}']) assert.equal(codexAuthLoggedIn(raw), false);
+  assert.equal(codexAuthReady({ CODEX_HOME: '/custom' }, (file) => { assert.equal(file, join('/custom', 'auth.json')); return '{"OPENAI_API_KEY":"test-key"}'; }), true);
+  assert.equal(codexAuthReady({}, () => { throw new Error('unreadable'); }), false);
+});
 
 test('Codex 명령 승인: 샌드박스 밖 실행(권한 상승)은 기본 거절, 열어 줘도 배포 방지 훅은 그대로', async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cy-codex-guard-'));
@@ -190,6 +197,16 @@ test('Codex 로그인: auth.json 이 없으면(keyring 저장) 안내, 가짜 �
     assert.throws(() => createCodexQuery({ prompt: 'run', options: { cwd: home } }, { spawn: (() => { throw new Error('띄우면 안 된다'); }) as any, authHome: home }), (e: Error) => e.message === CODEX_AUTH_MISSING);
     assert.match(CODEX_AUTH_MISSING, /Codex 로그인 정보를 찾지 못했어요/);
     assert.equal(readdirSync(tmpdir()).filter((n) => n.startsWith('shisa-codex-home-')).some((n) => activeCodexHomes().includes(join(tmpdir(), n))), false);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test('Codex 로그인: 빈 파일·깨진 JSON·로그아웃 파일은 프로세스를 띄우기 전에 거절한다', () => {
+  const home = mkdtempSync(join(tmpdir(), 'cy-codex-invalid-auth-'));
+  try {
+    for (const raw of ['', '{', '{}', '{"tokens":{"access_token":""}}']) {
+      writeFileSync(join(home, 'auth.json'), raw);
+      assert.throws(() => createCodexQuery({ prompt: 'run', options: { cwd: home } }, { spawn: (() => { throw new Error('must not spawn'); }) as any, authHome: home }), (e: Error) => e.message === CODEX_AUTH_MISSING);
+    }
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 

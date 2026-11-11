@@ -8,9 +8,11 @@ test('Claude 로그인 상태만 읽는다', () => {
   assert.equal(parseClaudeAuth('not json'), false);
 });
 
-test('Codex 는 액세스 토큰이 있을 때만 로그인', () => {
+test('Codex 는 사용 가능한 액세스 토큰 또는 API 키가 있어야 로그인', () => {
   assert.equal(codexAuthLoggedIn({ tokens: { access_token: 'x'.repeat(21) } }), true);
-  assert.equal(codexAuthLoggedIn({ tokens: { access_token: 'short' } }), false);
+  assert.equal(codexAuthLoggedIn({ tokens: { access_token: 'test-token' } }), true);
+  assert.equal(codexAuthLoggedIn({ OPENAI_API_KEY: 'test-key' }), true);
+  for (const auth of [{}, null, { tokens: { access_token: ' ' } }, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: 123 }]) assert.equal(codexAuthLoggedIn(auth), false);
   assert.equal(codexAuthLoggedIn('{'), false);
 });
 
@@ -70,4 +72,12 @@ test('윈도우: ~/.local/bin · %APPDATA%\\npm · PATH(;) 에서 PATHEXT 확장
 test('Finder의 짧은 PATH에서도 ChatGPT에 포함된 Codex를 찾는다', () => {
   const bin = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
   assert.equal(findBin('codex', { platform: 'darwin', home: '/home/me', pathEnv: '/usr/bin:/bin', readdir: () => [], exists: (p) => p === bin }), bin);
+});
+
+test('Finder의 짧은 PATH에서도 시스템·사용자 Codex 앱의 CLI를 찾는다', () => {
+  for (const root of ['/Applications', '/home/me/Applications']) {
+    const bin = `${root}/Codex.app/Contents/Resources/codex`;
+    assert.equal(findBin('codex', { platform: 'darwin', home: '/home/me', pathEnv: '/usr/bin:/bin', readdir: () => [], exists: (p) => p === bin }), bin);
+    assert.equal(findBin('codex', { platform: 'linux', home: '/home/me', pathEnv: '/usr/bin:/bin', readdir: () => [], exists: (p) => p === bin }), null);
+  }
 });

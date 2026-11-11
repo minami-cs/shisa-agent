@@ -21,8 +21,7 @@ export function parseClaudeAuth(stdout) {
 export function codexAuthLoggedIn(raw) {
   try {
     const j = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const token = j?.tokens?.access_token;
-    return typeof token === 'string' && token.length > 20;
+    return [j?.tokens?.access_token, j?.OPENAI_API_KEY].some((value) => typeof value === 'string' && value.trim().length > 0);
   } catch {
     return false;
   }
